@@ -1,5 +1,6 @@
 package com.bsren.rocketmq.remoting.protocol;
 
+import com.alibaba.fastjson.annotation.JSONField;
 import com.bsren.rocketmq.common.RemotingHelper;
 import com.bsren.rocketmq.logging.InternalLogger;
 import com.bsren.rocketmq.logging.InternalLoggerFactory;
@@ -12,6 +13,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -105,6 +108,40 @@ public class RemotingCommand {
 
         return cmd;
     }
+    public ByteBuffer encode() {
+        // 1> header length size
+        int length = 4;
+
+        // 2> header data length
+        byte[] headerData = this.headerEncode();
+        length += headerData.length;
+
+        // 3> body data length
+        if (this.body != null) {
+            length += body.length;
+        }
+
+        ByteBuffer result = ByteBuffer.allocate(4 + length);
+
+        // length
+        result.putInt(length);
+
+        // header length
+        result.putInt(markProtocolType(headerData.length, serializeTypeCurrentRPC));
+
+        // header data
+        result.put(headerData);
+
+        // body data;
+        if (this.body != null) {
+            result.put(this.body);
+        }
+
+        result.flip();
+
+        return result;
+    }
+
 
     public static RemotingCommand decode(final ByteBuf byteBuffer) throws RemotingCommandException {
         int length = byteBuffer.readableBytes();
@@ -176,6 +213,33 @@ public class RemotingCommand {
         return true;
     }
 
+    public void markOnewayRPC() {
+        int bits = 1 << RPC_ONEWAY;
+        this.flag |= bits;
+    }
+
+
+    @JSONField(serialize = false)
+    public boolean isOnewayRPC() {
+        int bits = 1 << RPC_ONEWAY;
+        return (this.flag & bits) == bits;
+    }
+
+    @JSONField(serialize = false)
+    public RemotingCommandType getType() {
+        if (this.isResponseType()) {
+            return RemotingCommandType.RESPONSE_COMMAND;
+        }
+
+        return RemotingCommandType.REQUEST_COMMAND;
+    }
+
+    @JSONField(serialize = false)
+    public boolean isResponseType() {
+        int bits = 1 << RPC_TYPE;
+        return (this.flag & bits) == bits;
+    }
+
     public static int markProtocolType(int source, SerializeType type) {
         return (type.getCode() << 24) | (source & 0x00FFFFFF);
     }
@@ -244,6 +308,97 @@ public class RemotingCommand {
     }
 
 
+    private byte[] headerEncode() {
+        this.makeCustomHeaderToNet();
+        if (SerializeType.ROCKETMQ == serializeTypeCurrentRPC) {
+            return RocketMQSerializable.rocketMQProtocolEncode(this);
+        } else {
+            return RemotingSerializable.encode(this);
+        }
+    }
+
+
+    public void makeCustomHeaderToNet() {
+        if (this.customHeader != null) {
+            Field[] fields = getClazzFields(customHeader.getClass());
+            if (null == this.extFields) {
+                this.extFields = new HashMap<>();
+            }
+
+            for (Field field : fields) {
+                if (!Modifier.isStatic(field.getModifiers())) {
+                    String name = field.getName();
+                    //todo 内部类的问题？
+                    if (!name.startsWith("this")) {
+                        Object value = null;
+                        try {
+                            field.setAccessible(true);
+                            value = field.get(this.customHeader);
+                        } catch (Exception e) {
+                            log.error("Failed to access field [{}]", name, e);
+                        }
+
+                        if (value != null) {
+                            this.extFields.put(name, value.toString());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void fastEncodeHeader(ByteBuf out) {
+        int bodySize = this.body != null ? this.body.length : 0;
+        int beginIndex = out.writerIndex();
+        // skip 8 bytes
+        out.writeLong(0);
+        int headerSize;
+        if (SerializeType.ROCKETMQ == serializeTypeCurrentRPC) {
+            if (customHeader != null && !(customHeader instanceof FastCodesHeader)) {
+                this.makeCustomHeaderToNet();
+            }
+            headerSize = RocketMQSerializable.rocketMQProtocolEncode(this, out);
+        } else {
+            this.makeCustomHeaderToNet();
+            byte[] header = RemotingSerializable.encode(this);
+            headerSize = header.length;
+            out.writeBytes(header);
+        }
+        out.setInt(beginIndex, 4 + headerSize + bodySize);
+        out.setInt(beginIndex + 4, markProtocolType(headerSize, serializeTypeCurrentRPC));
+    }
+
+    public ByteBuffer encodeHeader() {
+        return encodeHeader(this.body != null ? this.body.length : 0);
+    }
+
+    public ByteBuffer encodeHeader(final int bodyLength) {
+        // 1> header length size
+        int length = 4;
+
+        // 2> header data length
+        byte[] headerData = this.headerEncode();
+
+        length += headerData.length;
+
+        // 3> body data length
+        length += bodyLength;
+
+        ByteBuffer result = ByteBuffer.allocate(4 + length - bodyLength);
+
+        // length
+        result.putInt(length);
+
+        // header length
+        result.putInt(markProtocolType(headerData.length, serializeTypeCurrentRPC));
+
+        // header data
+        result.put(headerData);
+
+        result.flip();
+
+        return result;
+    }
     /**
      * 获取一个类所有的field，包括父类
      * 存储在class_hash_map中
@@ -381,5 +536,9 @@ public class RemotingCommand {
 
     public void setSerializeTypeCurrentRPC(SerializeType serializeTypeCurrentRPC) {
         this.serializeTypeCurrentRPC = serializeTypeCurrentRPC;
+    }
+
+    public byte[] getBody() {
+        return body;
     }
 }
