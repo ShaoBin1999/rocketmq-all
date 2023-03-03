@@ -2,7 +2,6 @@ package com.bsren.rocketmq.remoting.protocol;
 
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import io.netty.buffer.ByteBuf;
-import jdk.nashorn.internal.ir.CallNode;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -45,7 +44,6 @@ public class RocketMQSerializable {
     /**
      * 返回写入的长度
      */
-
     public static int rocketMQProtocolEncode(RemotingCommand cmd,ByteBuf out){
         int beginIndex = out.writerIndex();
 
@@ -120,6 +118,25 @@ public class RocketMQSerializable {
         return headerBuffer.array();
     }
 
+    public static RemotingCommand rocketMQProtocolDecode(final ByteBuf byteBuf,int headerLen) throws RemotingCommandException {
+        RemotingCommand cmd = new RemotingCommand();
+        cmd.setCode(byteBuf.readShort());
+        cmd.setLanguage(LanguageCode.valueOf(byteBuf.readByte()));
+        cmd.setVersion(byteBuf.readShort());
+        cmd.setOpaque(byteBuf.readInt());
+        cmd.setFlag(byteBuf.readInt());
+        cmd.setRemark(readStr(byteBuf,false,headerLen));
+        int extFieldsLength = byteBuf.readInt();
+        if(extFieldsLength>0){
+            //todo
+            if(extFieldsLength>headerLen){
+                throw new RemotingCommandException("RocketMQ protocol decoding failed, extFields length: " + extFieldsLength + ", but header length: " + headerLen);
+            }
+            cmd.setExtFields(mapDeserialize(byteBuf,extFieldsLength));
+        }
+        return cmd;
+    }
+
     public static byte[] mapSerialize(HashMap<String,String> map){
         if(map==null || map.isEmpty()){
             return null;
@@ -153,6 +170,17 @@ public class RocketMQSerializable {
         return content.array();
     }
 
+    public static HashMap<String,String> mapDeserialize(ByteBuf byteBuf,int len) throws RemotingCommandException {
+        HashMap<String,String> map = new HashMap<>();
+        int endIndex = byteBuf.readerIndex()+len;
+        while (byteBuf.readerIndex()<endIndex){
+            String k = readStr(byteBuf,true,len);
+            String v = readStr(byteBuf,false,len);
+            map.put(k,v);
+        }
+        return map;
+    }
+
     private static int calTotalLen(int remark,int ext){
         int length =
                 2+
@@ -165,6 +193,17 @@ public class RocketMQSerializable {
         return length;
     }
 
-
+    public static boolean isBlank(String str) {
+        int strLen;
+        if (str == null || (strLen = str.length()) == 0) {
+            return true;
+        }
+        for (int i = 0; i < strLen; i++) {
+            if (!Character.isWhitespace(str.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 }

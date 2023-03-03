@@ -4,11 +4,15 @@ import com.bsren.rocketmq.common.RemotingHelper;
 import com.bsren.rocketmq.logging.InternalLogger;
 import com.bsren.rocketmq.logging.InternalLoggerFactory;
 import com.bsren.rocketmq.remoting.CommandCustomHeader;
+import com.bsren.rocketmq.remoting.annotation.CFNotNull;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import io.netty.buffer.ByteBuf;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
+import java.lang.reflect.Modifier;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RemotingCommand {
@@ -35,6 +39,22 @@ public class RemotingCommand {
     private transient CommandCustomHeader customHeader;
     private static volatile int configVersion = -1;
 
+    private static final Map<Class<? extends CommandCustomHeader>, Field[]> CLASS_HASH_MAP =
+            new HashMap<>();
+
+    private static final Map<Class, String> CANONICAL_NAME_CACHE = new HashMap<>();
+
+    private static final Map<Field, Boolean> NULLABLE_FIELD_CACHE = new HashMap<>();
+
+    private static final String STRING_CANONICAL_NAME = String.class.getCanonicalName();
+    private static final String DOUBLE_CANONICAL_NAME_1 = Double.class.getCanonicalName();
+    private static final String DOUBLE_CANONICAL_NAME_2 = double.class.getCanonicalName();
+    private static final String INTEGER_CANONICAL_NAME_1 = Integer.class.getCanonicalName();
+    private static final String INTEGER_CANONICAL_NAME_2 = int.class.getCanonicalName();
+    private static final String LONG_CANONICAL_NAME_1 = Long.class.getCanonicalName();
+    private static final String LONG_CANONICAL_NAME_2 = long.class.getCanonicalName();
+    private static final String BOOLEAN_CANONICAL_NAME_1 = Boolean.class.getCanonicalName();
+    private static final String BOOLEAN_CANONICAL_NAME_2 = boolean.class.getCanonicalName();
 
     private static SerializeType serializeTypeConfigInThisServer = SerializeType.JSON;
 
@@ -88,7 +108,7 @@ public class RemotingCommand {
 
     public static RemotingCommand decode(final ByteBuf byteBuffer) throws RemotingCommandException {
         int length = byteBuffer.readableBytes();
-        int oriHeaderLen = byteBuffer.readInt();
+        int oriHeaderLen = byteBuffer.readInt();  //第一个字节用于表示序列化类型，后三个字节用于表示长度
         int headerLength = getHeaderLength(oriHeaderLen);
         if (headerLength > length - 4) {
             throw new RemotingCommandException("decode error, bad header length: " + headerLength);
@@ -122,16 +142,151 @@ public class RemotingCommand {
                 resultRMQ.setSerializeTypeCurrentRPC(type);
                 return resultRMQ;
             default:
-                break;
+                throw new RemotingCommandException("unsupported serialize type");
         }
-
-        return null;
     }
 
+    public static SerializeType getProtocolType(int source) {
+        return SerializeType.valueOf((byte) ((source >> 24) & 0xFF));
+    }
 
     public static int getHeaderLength(int length) {
         return length & 0xFFFFFF;
     }
+
+    public static int createNewRequestId() {
+        return requestId.getAndIncrement();
+    }
+
+    public static SerializeType getSerializeTypeConfigInThisServer() {
+        return serializeTypeConfigInThisServer;
+    }
+
+    //todo 移到util中去
+    private static boolean isBlank(String str) {
+        int strLen;
+        if (str == null || (strLen = str.length()) == 0) {
+            return true;
+        }
+        for (int i = 0; i < strLen; i++) {
+            if (!Character.isWhitespace(str.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static int markProtocolType(int source, SerializeType type) {
+        return (type.getCode() << 24) | (source & 0x00FFFFFF);
+    }
+
+    public CommandCustomHeader decodeCommandCustomHeader(
+            Class<? extends CommandCustomHeader> classHeader,
+            boolean useFastEncode
+    ) throws RemotingCommandException {
+        CommandCustomHeader objectHeader;
+        try {
+            objectHeader = classHeader.getDeclaredConstructor().newInstance();
+        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+            return null;
+        }
+        //todo
+        if(this.extFields!=null){
+            if (objectHeader instanceof FastCodesHeader && useFastEncode) {
+                ((FastCodesHeader) objectHeader).decode(this.extFields);
+                objectHeader.checkFields();
+                return objectHeader;
+            }
+
+            Field[] fields = getClazzFields(classHeader);
+            for (Field field : fields) {
+                if (!Modifier.isStatic(field.getModifiers())) {
+                    String fieldName = field.getName();
+                    if (!fieldName.startsWith("this")) {
+                        try {
+                            String value = this.extFields.get(fieldName);
+                            if (null == value) {
+                                if (!isFieldNullable(field)) {
+                                    throw new RemotingCommandException("the custom field <" + fieldName + "> is null");
+                                }
+                                continue;
+                            }
+
+                            field.setAccessible(true);
+                            String type = getCanonicalName(field.getType());
+                            Object valueParsed;
+
+                            if (type.equals(STRING_CANONICAL_NAME)) {
+                                valueParsed = value;
+                            } else if (type.equals(INTEGER_CANONICAL_NAME_1) || type.equals(INTEGER_CANONICAL_NAME_2)) {
+                                valueParsed = Integer.parseInt(value);
+                            } else if (type.equals(LONG_CANONICAL_NAME_1) || type.equals(LONG_CANONICAL_NAME_2)) {
+                                valueParsed = Long.parseLong(value);
+                            } else if (type.equals(BOOLEAN_CANONICAL_NAME_1) || type.equals(BOOLEAN_CANONICAL_NAME_2)) {
+                                valueParsed = Boolean.parseBoolean(value);
+                            } else if (type.equals(DOUBLE_CANONICAL_NAME_1) || type.equals(DOUBLE_CANONICAL_NAME_2)) {
+                                valueParsed = Double.parseDouble(value);
+                            } else {
+                                throw new RemotingCommandException("the custom field <" + fieldName + "> type is not supported");
+                            }
+
+                            field.set(objectHeader, valueParsed);
+
+                        } catch (Throwable e) {
+                            log.error("Failed field [{}] decoding", fieldName, e);
+                        }
+                    }
+                }
+            }
+            objectHeader.checkFields();
+        }
+        return objectHeader;
+    }
+
+
+    /**
+     * 获取一个类所有的field，包括父类
+     * 存储在class_hash_map中
+     */
+    Field[] getClazzFields(Class<? extends CommandCustomHeader> classHeader) {
+        Field[] field = CLASS_HASH_MAP.get(classHeader);
+
+        if (field == null) {
+            Set<Field> fieldList = new HashSet<>();
+            for (Class className = classHeader; className != Object.class; className = className.getSuperclass()) {
+                Field[] fields = className.getDeclaredFields();
+                fieldList.addAll(Arrays.asList(fields));
+            }
+            field = fieldList.toArray(new Field[0]);
+            synchronized (CLASS_HASH_MAP) {
+                CLASS_HASH_MAP.put(classHeader, field);
+            }
+        }
+        return field;
+    }
+
+    private boolean isFieldNullable(Field field) {
+        if (!NULLABLE_FIELD_CACHE.containsKey(field)) {
+            Annotation annotation = field.getAnnotation(CFNotNull.class);
+            synchronized (NULLABLE_FIELD_CACHE) {
+                NULLABLE_FIELD_CACHE.put(field, annotation == null);
+            }
+        }
+        return NULLABLE_FIELD_CACHE.get(field);
+    }
+
+    private String getCanonicalName(Class clazz) {
+        String name = CANONICAL_NAME_CACHE.get(clazz);
+
+        if (name == null) {
+            name = clazz.getCanonicalName();
+            synchronized (CANONICAL_NAME_CACHE) {
+                CANONICAL_NAME_CACHE.put(clazz, name);
+            }
+        }
+        return name;
+    }
+
 
     //todo
     public void markResponseType() {
@@ -162,6 +317,26 @@ public class RemotingCommand {
 
     public HashMap<String, String> getExtFields() {
         return extFields;
+    }
+
+    public void setLanguage(LanguageCode language) {
+        this.language = language;
+    }
+
+    public void setOpaque(int opaque) {
+        this.opaque = opaque;
+    }
+
+    public void setFlag(int flag) {
+        this.flag = flag;
+    }
+
+    public void setExtFields(HashMap<String, String> extFields) {
+        this.extFields = extFields;
+    }
+
+    public void setCustomHeader(CommandCustomHeader customHeader) {
+        this.customHeader = customHeader;
     }
 
     public int getCode() {
