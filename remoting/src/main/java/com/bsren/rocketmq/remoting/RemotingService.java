@@ -14,22 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.common.metrics;
 
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.context.Context;
+package com.bsren.rocketmq.remoting;
 
-public class NopLongCounter implements LongCounter {
-    @Override public void add(long l) {
+public interface RemotingService {
 
-    }
+    void start();
 
-    @Override public void add(long l, Attributes attributes) {
+    void shutdown();
 
-    }
+    void registerRPCHook(RPCHook rpcHook);
 
-    @Override public void add(long l, Attributes attributes, Context context) {
-
-    }
+    void clearRPCHook();
 }
