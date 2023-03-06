@@ -24,6 +24,10 @@ public class RemotingCommand {
     public static final String SERIALIZE_TYPE_ENV = "ROCKETMQ_SERIALIZE_TYPE";
     public static final String REMOTING_VERSION_KEY = "rocketmq.remoting.version";
 
+    public void setBody(byte[] body) {
+        this.body = body;
+    }
+
     static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
     private static final int RPC_TYPE = 0; // 0, REQUEST_COMMAND
@@ -88,6 +92,11 @@ public class RemotingCommand {
     public static RemotingCommand createResponseCommand(int code, String remark) {
         return createResponseCommand(code, remark, null);
     }
+
+    public static RemotingCommand createResponseCommand(Class<? extends CommandCustomHeader> classHeader) {
+        return createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR, "not set any response code", classHeader);
+    }
+
 
     public static RemotingCommand createResponseCommand(int code,
                                                         String remark,
@@ -242,6 +251,11 @@ public class RemotingCommand {
 
     public static int markProtocolType(int source, SerializeType type) {
         return (type.getCode() << 24) | (source & 0x00FFFFFF);
+    }
+
+    public CommandCustomHeader decodeCommandCustomHeader(
+            Class<? extends CommandCustomHeader> classHeader) throws RemotingCommandException {
+        return decodeCommandCustomHeader(classHeader, true);
     }
 
     public CommandCustomHeader decodeCommandCustomHeader(
@@ -540,5 +554,9 @@ public class RemotingCommand {
 
     public byte[] getBody() {
         return body;
+    }
+
+    public void addExtField(String uniqueMsgQueryFlag, String toString) {
+
     }
 }

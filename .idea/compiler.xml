@@ -6,9 +6,12 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="common" />
-        <module name="remoting" />
         <module name="logging" />
+        <module name="client" />
+        <module name="store" />
+        <module name="common" />
+        <module name="broker" />
+        <module name="remoting" />
       </profile>
     </annotationProcessing>
   </component>

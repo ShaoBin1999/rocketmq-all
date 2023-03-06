@@ -12,6 +12,9 @@
         <module>remoting</module>
         <module>common</module>
         <module>logging</module>
+        <module>client</module>
+        <module>broker</module>
+        <module>store</module>
     </modules>
 
     <properties>
