@@ -594,13 +594,14 @@ public class DefaultMessageStore implements MessageStore {
         return getResult;
     }
 
+    /**
+     *
+     */
     public long getMaxOffsetInQueue(String topic, int queueId) {
         ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
         if (logic != null) {
-            long offset = logic.getMaxOffsetInQueue();
-            return offset;
+            return logic.getMaxOffsetInQueue();
         }
-
         return 0;
     }
 
@@ -1048,18 +1049,15 @@ public class DefaultMessageStore implements MessageStore {
         return null;
     }
 
+    /**
+     *
+     */
     public ConsumeQueue findConsumeQueue(String topic, int queueId) {
         ConcurrentMap<Integer, ConsumeQueue> map = consumeQueueTable.get(topic);
         if (null == map) {
-            ConcurrentMap<Integer, ConsumeQueue> newMap = new ConcurrentHashMap<Integer, ConsumeQueue>(128);
-            ConcurrentMap<Integer, ConsumeQueue> oldMap = consumeQueueTable.putIfAbsent(topic, newMap);
-            if (oldMap != null) {
-                map = oldMap;
-            } else {
-                map = newMap;
-            }
+            map = new ConcurrentHashMap<>(128);
+            consumeQueueTable.put(topic,map);
         }
-
         ConsumeQueue logic = map.get(queueId);
         if (null == logic) {
             ConsumeQueue newLogic = new ConsumeQueue(

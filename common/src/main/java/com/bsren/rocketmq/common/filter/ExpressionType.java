@@ -59,9 +59,6 @@ public class ExpressionType {
     public static final String TAG = "TAG";
 
     public static boolean isTagType(String type) {
-        if (type == null || TAG.equals(type)) {
-            return true;
-        }
-        return false;
+        return type == null || TAG.equals(type);
     }
 }

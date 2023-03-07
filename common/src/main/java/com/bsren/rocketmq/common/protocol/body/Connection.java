@@ -17,7 +17,7 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.remoting.protocol.LanguageCode;
+import com.bsren.rocketmq.remoting.protocol.LanguageCode;
 
 public class Connection {
     private String clientId;

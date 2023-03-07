@@ -16,28 +16,32 @@
  */
 package com.bsren.rocketmq.broker.processor;
 
+import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.pagecache.OneMessageTransfer;
+import com.bsren.rocketmq.broker.pagecache.QueryMessageTransfer;
+import com.bsren.rocketmq.common.MixAll;
+import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
+import com.bsren.rocketmq.common.protocol.header.QueryMessageRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.QueryMessageResponseHeader;
+import com.bsren.rocketmq.common.protocol.header.ViewMessageRequestHeader;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.store.QueryMessageResult;
+import com.bsren.rocketmq.store.SelectMappedBufferResult;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.FileRegion;
-import org.apache.rocketmq.broker.BrokerController;
-import org.apache.rocketmq.broker.pagecache.OneMessageTransfer;
-import org.apache.rocketmq.broker.pagecache.QueryMessageTransfer;
-import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.header.QueryMessageRequestHeader;
-import org.apache.rocketmq.common.protocol.header.QueryMessageResponseHeader;
-import org.apache.rocketmq.common.protocol.header.ViewMessageRequestHeader;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.store.QueryMessageResult;
-import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * RequestCode.QUERY_MESSAGE
+ * RequestCode.VIEW_MESSAGE_BY_ID
+ */
 public class QueryMessageProcessor implements NettyRequestProcessor {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
@@ -69,13 +73,10 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
 
     public RemotingCommand queryMessage(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
-        final RemotingCommand response =
-            RemotingCommand.createResponseCommand(QueryMessageResponseHeader.class);
-        final QueryMessageResponseHeader responseHeader =
-            (QueryMessageResponseHeader) response.readCustomHeader();
+        final RemotingCommand response = RemotingCommand.createResponseCommand(QueryMessageResponseHeader.class);
+        final QueryMessageResponseHeader responseHeader = (QueryMessageResponseHeader) response.getCustomHeader();
         final QueryMessageRequestHeader requestHeader =
-            (QueryMessageRequestHeader) request
-                .decodeCommandCustomHeader(QueryMessageRequestHeader.class);
+                (QueryMessageRequestHeader) request.decodeCommandCustomHeader(QueryMessageRequestHeader.class);
 
         response.setOpaque(request.getOpaque());
 
@@ -98,9 +99,9 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
             response.setRemark(null);
 
             try {
+                //todo fileRegion
                 FileRegion fileRegion =
-                    new QueryMessageTransfer(response.encodeHeader(queryMessageResult
-                        .getBufferTotalSize()), queryMessageResult);
+                    new QueryMessageTransfer(response.encodeHeader(queryMessageResult.getBufferTotalSize()), queryMessageResult);
                 ctx.channel().writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
@@ -114,7 +115,6 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
                 log.error("", e);
                 queryMessageResult.release();
             }
-
             return null;
         }
 
@@ -123,8 +123,7 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand request)
-        throws RemotingCommandException {
+    public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
         final ViewMessageRequestHeader requestHeader =
             (ViewMessageRequestHeader) request.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
@@ -139,8 +138,7 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
 
             try {
                 FileRegion fileRegion =
-                    new OneMessageTransfer(response.encodeHeader(selectMappedBufferResult.getSize()),
-                        selectMappedBufferResult);
+                    new OneMessageTransfer(response.encodeHeader(selectMappedBufferResult.getSize()), selectMappedBufferResult);
                 ctx.channel().writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

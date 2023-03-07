@@ -17,6 +17,7 @@
 package com.bsren.rocketmq.remoting.netty;
 
 import com.bsren.rocketmq.common.RemotingHelper;
+import com.bsren.rocketmq.common.ServiceThread;
 import com.bsren.rocketmq.logging.InternalLogger;
 import com.bsren.rocketmq.logging.InternalLoggerFactory;
 import com.bsren.rocketmq.remoting.ChannelEventListener;
@@ -24,7 +25,6 @@ import com.bsren.rocketmq.remoting.InvokeCallback;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.common.Pair;
 import com.bsren.rocketmq.remoting.common.SemaphoreReleaseOnlyOnce;
-import com.bsren.rocketmq.remoting.common.ServiceThread;
 import com.bsren.rocketmq.remoting.exception.RemotingSendRequestException;
 import com.bsren.rocketmq.remoting.exception.RemotingTimeoutException;
 import com.bsren.rocketmq.remoting.exception.RemotingTooMuchRequestException;

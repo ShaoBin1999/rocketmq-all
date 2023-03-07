@@ -79,7 +79,8 @@ public class CommitLog {
 
         this.commitLogService = new CommitRealTimeService();
 
-        this.appendMessageCallback = new DefaultAppendMessageCallback(defaultMessageStore.getMessageStoreConfig().getMaxMessageSize());
+        this.appendMessageCallback = new DefaultAppendMessageCallback(
+                defaultMessageStore.getMessageStoreConfig().getMaxMessageSize());
         batchEncoderThreadLocal = new ThreadLocal<MessageExtBatchEncoder>() {
             @Override
             protected MessageExtBatchEncoder initialValue() {
@@ -365,6 +366,9 @@ public class CommitLog {
         return new DispatchRequest(-1, false /* success */);
     }
 
+    /**
+     * msg的body, topic, properties会被记录
+     */
     private static int calMsgLength(int bodyLength, int topicLength, int propertiesLength) {
         final int msgLen = 4 //TOTALSIZE
             + 4 //MAGICCODE
@@ -379,7 +383,7 @@ public class CommitLog {
             + 8 //STORETIMESTAMP
             + 8 //STOREHOSTADDRESS
             + 4 //RECONSUMETIMES
-            + 8 //Prepared Transaction Offset
+            + 8 //Prepared Transaction Offset   //92
             + 4 + (bodyLength > 0 ? bodyLength : 0) //BODY
             + 1 + topicLength //TOPIC
             + 2 + (propertiesLength > 0 ? propertiesLength : 0) //propertiesLength
@@ -633,6 +637,7 @@ public class CommitLog {
         return putMessageResult;
     }
 
+
     public void handleDiskFlush(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
         // Synchronization flush
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
@@ -686,6 +691,7 @@ public class CommitLog {
         }
 
     }
+
 
     public PutMessageResult putMessages(final MessageExtBatch messageExtBatch) {
         messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
@@ -749,9 +755,6 @@ public class CommitLog {
                 case PROPERTIES_SIZE_EXCEEDED:
                     beginTimeInLock = 0;
                     return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result);
-                case UNKNOWN_ERROR:
-                    beginTimeInLock = 0;
-                    return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
                 default:
                     beginTimeInLock = 0;
                     return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
@@ -1154,13 +1157,19 @@ public class CommitLog {
     }
 
     class DefaultAppendMessageCallback implements AppendMessageCallback {
+
         // File at the end of the minimum fixed length empty
         private static final int END_FILE_MIN_BLANK_LENGTH = 4 + 4;
+
         private final ByteBuffer msgIdMemory;
+
         // Store the message content
+        // 复用的，不用每次创建
         private final ByteBuffer msgStoreItemMemory;
+
         // The maximum length of the message
         private final int maxMessageSize;
+
         // Build Message Key
         private final StringBuilder keyBuilder = new StringBuilder();
 
@@ -1186,25 +1195,22 @@ public class CommitLog {
             long wroteOffset = fileFromOffset + byteBuffer.position();
 
             this.resetByteBuffer(hostHolder, 8);
+            // msgId = address+offset
             String msgId = MessageDecoder.createMessageId(this.msgIdMemory, msgInner.getStoreHostBytes(hostHolder), wroteOffset);
 
-            // Record ConsumeQueue information
+            // Record ConsumeQueue information  记录了topic和queueId
             keyBuilder.setLength(0);
             keyBuilder.append(msgInner.getTopic());
             keyBuilder.append('-');
             keyBuilder.append(msgInner.getQueueId());
             String key = keyBuilder.toString();
-            Long queueOffset = CommitLog.this.topicQueueTable.get(key);
-            if (null == queueOffset) {
-                queueOffset = 0L;
-                CommitLog.this.topicQueueTable.put(key, queueOffset);
-            }
+            long queueOffset = CommitLog.this.topicQueueTable.computeIfAbsent(key, k -> 0L);
 
             // Transaction messages that require special handling
             final int tranType = MessageSysFlag.getTransactionValue(msgInner.getSysFlag());
             switch (tranType) {
                 // Prepared and Rollback message is not consumed, will not enter the
-                // consumer queuec
+                // consumer queue
                 case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
                 case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
                     queueOffset = 0L;
@@ -1243,11 +1249,13 @@ public class CommitLog {
             }
 
             // Determines whether there is sufficient free space
+            // 是否有足够的空间存储
+            // 如果没有足够的空间存储，则在msgStoreItemMemory里写入maxBlank的长度，然后写入一个魔数
             if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
                 this.resetByteBuffer(this.msgStoreItemMemory, maxBlank);
-                // 1 TOTALSIZE
+                // 1 TOTAL_SIZE
                 this.msgStoreItemMemory.putInt(maxBlank);
-                // 2 MAGICCODE
+                // 2 MAGIC_CODE
                 this.msgStoreItemMemory.putInt(CommitLog.BLANK_MAGIC_CODE);
                 // 3 The remaining space may be any value
                 // Here the length of the specially set maxBlank
@@ -1257,6 +1265,28 @@ public class CommitLog {
                     queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
 
+            /**
+             * 1.总字节数  4
+             * 2.魔数     4
+             * 3.crc校验  4
+             * 4.queueId 4
+             * 5.flag    4
+             * 6.queueOffset long
+             * 7.physicalOffset long
+             * 8.sysFlag int
+             * 9.bron timestamp long
+             * 10.bron host long
+             * 11.store timestamp long
+             * 12. store host long
+             * 13. reConsumeTimes int
+             * 14. transaction offset
+             * 15. body length int
+             * 16. body
+             * 17. topic length byte
+             * 18. topic
+             * 19. properties length
+             * 20. properties
+             */
             // Initialization of storage space
             this.resetByteBuffer(msgStoreItemMemory, msgLen);
             // 1 TOTALSIZE
@@ -1310,9 +1340,6 @@ public class CommitLog {
                 msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
 
             switch (tranType) {
-                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
-                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
-                    break;
                 case MessageSysFlag.TRANSACTION_NOT_TYPE:
                 case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
                     // The next update ConsumeQueue information
@@ -1335,11 +1362,7 @@ public class CommitLog {
             keyBuilder.append('-');
             keyBuilder.append(messageExtBatch.getQueueId());
             String key = keyBuilder.toString();
-            Long queueOffset = CommitLog.this.topicQueueTable.get(key);
-            if (null == queueOffset) {
-                queueOffset = 0L;
-                CommitLog.this.topicQueueTable.put(key, queueOffset);
-            }
+            long queueOffset = CommitLog.this.topicQueueTable.computeIfAbsent(key, k -> 0L);
             long beginQueueOffset = queueOffset;
             int totalMsgLen = 0;
             int msgNum = 0;
@@ -1413,6 +1436,9 @@ public class CommitLog {
 
     }
 
+    /**
+     * 将messageExtBatch里面批量的信息存到一个byteBuffer里面
+     */
     public static class MessageExtBatchEncoder {
         // Store the message content
         private final ByteBuffer msgBatchMemory;
@@ -1426,6 +1452,9 @@ public class CommitLog {
             this.maxMessageSize = size;
         }
 
+        /**
+         * 将messageExcBatch的东西循环写到byteBuffer里面
+         */
         public ByteBuffer encode(final MessageExtBatch messageExtBatch) {
             msgBatchMemory.clear(); //not thread-safe
             int totalMsgLen = 0;

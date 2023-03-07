@@ -17,8 +17,8 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 public class CheckClientRequestBody extends RemotingSerializable {
 

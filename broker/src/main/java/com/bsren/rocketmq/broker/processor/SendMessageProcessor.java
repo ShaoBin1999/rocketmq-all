@@ -16,7 +16,16 @@
  */
 package com.bsren.rocketmq.broker.processor;
 
+import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.mqtrace.ConsumeMessageHook;
+import com.bsren.rocketmq.broker.mqtrace.SendMessageContext;
 import com.bsren.rocketmq.common.UtilAll;
+import com.bsren.rocketmq.common.protocol.header.ConsumerSendMsgBackRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.SendMessageResponseHeader;
+import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.mqtrace.ConsumeMessageContext;
@@ -290,7 +299,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         final SendMessageRequestHeader requestHeader) throws RemotingCommandException {
 
         final RemotingCommand response = RemotingCommand.createResponseCommand(SendMessageResponseHeader.class);
-        final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.readCustomHeader();
+        final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.getCustomHeader();
 
         response.setOpaque(request.getOpaque());
 
@@ -465,7 +474,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         final SendMessageRequestHeader requestHeader) throws RemotingCommandException {
 
         final RemotingCommand response = RemotingCommand.createResponseCommand(SendMessageResponseHeader.class);
-        final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.readCustomHeader();
+        final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response.getCustomHeader();
 
         response.setOpaque(request.getOpaque());
 

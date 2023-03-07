@@ -17,10 +17,10 @@
 
 package com.bsren.rocketmq.common.protocol;
 
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.protocol.header.namesrv.RegisterBrokerRequestHeader;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.common.RemotingHelper;
+import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.protocol.header.namesrv.RegisterBrokerRequestHeader;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

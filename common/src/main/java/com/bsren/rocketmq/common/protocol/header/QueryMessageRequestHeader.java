@@ -25,7 +25,9 @@ import com.bsren.rocketmq.remoting.annotation.CFNotNull;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 
 /**
- * topic, key, maxnum, beginTimestamp, endTimestamp
+ * topic, key,
+ * maxnum 查询返回的最大消息条目
+ * beginTimestamp, endTimestamp
  */
 public class QueryMessageRequestHeader implements CommandCustomHeader {
 

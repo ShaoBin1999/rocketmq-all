@@ -29,6 +29,22 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
+/**
+ * byteBufferRead 存储最大长度为1M，
+ * 但是当byteBufferRead满后，就直接重置，并没有处理未完整包，为什么呢？
+ * 因为slave上报最大偏移量时，占用8个字节，所以byteBufferRead的长度肯定能存储完整的包。
+ * processPosition是上一次读取数据的位置。从socketChannel读取内容时都会复制到byteBufferRead中，然后与上一次去读位置比较，
+ * 因为一个包只要8个字节，所以差值大于等于8即可。
+ * 但是在获取slave上报的偏移量时，他只是获取了最近的一个包，即如果this.byteBufferRead.position() - this.processPosition是8的好几倍，
+ * 他也是读取最某位的数据。不关心中间包的数据情况。
+ * int pos = this.byteBufferRead.position() - (this.byteBufferRead.position() % 8);
+ * 该pos获取的方式，就是为了保证pos是8的倍数，剔除掉某位可能出现不完整包的情况。
+ * 然后readOffset的偏移量就是pos-8 的位置读取8个字节的数据。
+ * 并且重置了processPosition的位置。
+ * slaveAckOffset 就是认为slave存储的数据也是持久化成功的确认位置，然后执行haService.notifyTransferSome服务（待会聊，为什么需要这个通知服务）。
+ * 其中slaveRequestOffset 是HAConnection的属性，当小于0时需要将此次读取到readOffset赋值给slaveRequestOffset。
+ * 这是一个读取服务，既可以直到当前slave的消息持久的位置，也能保证心跳连接方式。
+ */
 public class HAConnection {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private final HAService haService;
@@ -79,12 +95,25 @@ public class HAConnection {
         return socketChannel;
     }
 
+    /**
+     * byteBufferRead，用于在通道上读取数据。
+     * processPosition，用于记录当前已经处理的数据的偏移量。
+     * lastReadTimestamp，用于记录该通道上最后一次读取到数据的时间。
+     * 该类的run方法的实现逻辑很简单，在一个死循环中，在selector上执行超时等待。
+     * 当selector.select方法返回的时候，调用方法processReadEvent处理可能读取到的数据。
+     * 当处理读取数据错误（通道关闭或者发生异常）或者当前时间与上次数据读取差距过大时（客户端超时），都会终止循环。
+     * 终止循环后会执行以下操作：
+     * 调用自身和writeSocketService的makeStop方法，设置停止标志位。
+     * 调用方法HAService#removeConnection将连接删除。
+     * 属性HAService#connectionCount减1.
+     * 执行选择器取消，通道关闭等操作。
+     */
     class ReadSocketService extends ServiceThread {
         private static final int READ_MAX_BUFFER_SIZE = 1024 * 1024;
         private final Selector selector;
         private final SocketChannel socketChannel;
         private final ByteBuffer byteBufferRead = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);
-        private int processPostion = 0;
+        private int processPosition = 0;
         private volatile long lastReadTimestamp = System.currentTimeMillis();
 
         public ReadSocketService(final SocketChannel socketChannel) throws IOException {
@@ -146,12 +175,18 @@ public class HAConnection {
             return ReadSocketService.class.getSimpleName();
         }
 
+        /**
+         * 修改lastReadTimestamp
+         * 修改slaveAckOffset为最近的一次偏移
+         * 如果slaveRequestOffset小于0则同样赋值为最近一次偏移
+         * 触发notifyTransferSome方法
+         */
         private boolean processReadEvent() {
             int readSizeZeroTimes = 0;
 
             if (!this.byteBufferRead.hasRemaining()) {
                 this.byteBufferRead.flip();
-                this.processPostion = 0;
+                this.processPosition = 0;
             }
 
             while (this.byteBufferRead.hasRemaining()) {
@@ -160,10 +195,10 @@ public class HAConnection {
                     if (readSize > 0) {
                         readSizeZeroTimes = 0;
                         this.lastReadTimestamp = HAConnection.this.haService.getDefaultMessageStore().getSystemClock().now();
-                        if ((this.byteBufferRead.position() - this.processPostion) >= 8) {
+                        if ((this.byteBufferRead.position() - this.processPosition) >= 8) {
                             int pos = this.byteBufferRead.position() - (this.byteBufferRead.position() % 8);
                             long readOffset = this.byteBufferRead.getLong(pos - 8);
-                            this.processPostion = pos;
+                            this.processPosition = pos;
 
                             HAConnection.this.slaveAckOffset = readOffset;
                             if (HAConnection.this.slaveRequestOffset < 0) {
@@ -191,6 +226,16 @@ public class HAConnection {
         }
     }
 
+    /**
+     * slaveRequestOffset 等于-1 说明slave还没有发送当前最大偏移量，
+     * 作为master，是无法确定给slave推送消息数据的起始位置，所以不能继续执行。
+     * 当nextTransferFromWhere为-1时，说明master还没有开始推送，需要确认推送给slave的起始位置。
+     * 如果slaveRequestOffset等于0，说明slave当前状况完全是新服务，没有本地存储的消息，
+     * 那么master推送给slave的起始位置是存储消息的最后一个文件开始位置。
+     * masterOffset是当前master最大偏移量，最终取模相减之后，即为最后文件的起始位置。
+     * 如果说slaveRequestOffset大于0，那么master推送给slave起始位置，即为slave当前最大的位置slaveRequestOffset。
+     * 这是初始工作，最重要的任务就是需要确认master推送数据时的起始位置。
+     */
     class WriteSocketService extends ServiceThread {
         private final Selector selector;
         private final SocketChannel socketChannel;

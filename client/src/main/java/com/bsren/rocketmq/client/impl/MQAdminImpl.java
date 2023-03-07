@@ -16,6 +16,8 @@
  */
 package com.bsren.rocketmq.client.impl;
 
+import com.bsren.rocketmq.client.QueryResult;
+import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
 import com.bsren.rocketmq.client.impl.factory.MQClientInstance;
 import com.bsren.rocketmq.client.impl.producer.TopicPublishInfo;
@@ -23,9 +25,18 @@ import com.bsren.rocketmq.client.log.ClientLogger;
 import com.bsren.rocketmq.common.FAQUrl;
 import com.bsren.rocketmq.common.MixAll;
 import com.bsren.rocketmq.common.TopicConfig;
-import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.message.*;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
+import com.bsren.rocketmq.common.protocol.header.QueryMessageRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.QueryMessageResponseHeader;
 import com.bsren.rocketmq.common.protocol.route.BrokerData;
 import com.bsren.rocketmq.common.protocol.route.TopicRouteData;
+import com.bsren.rocketmq.remoting.InvokeCallback;
+import com.bsren.rocketmq.remoting.common.RemotingUtil;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.exception.RemotingException;
+import com.bsren.rocketmq.remoting.netty.ResponseFuture;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
@@ -240,7 +251,7 @@ public class MQAdminImpl {
     }
 
     public MessageExt queryMessageByUniqKey(String topic,
-        String uniqKey) throws InterruptedException, MQClientException {
+                                            String uniqKey) throws InterruptedException, MQClientException {
 
         QueryResult qr = this.queryMessage(topic, uniqKey, 32,
             MessageClientIDSetter.getNearlyTimeFromID(uniqKey).getTime() - 1000, Long.MAX_VALUE, true);

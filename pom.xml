@@ -15,6 +15,7 @@
         <module>client</module>
         <module>broker</module>
         <module>store</module>
+        <module>filter</module>
     </modules>
 
     <properties>

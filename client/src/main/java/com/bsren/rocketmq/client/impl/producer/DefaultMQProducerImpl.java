@@ -21,6 +21,7 @@ import com.bsren.rocketmq.client.Validators;
 import com.bsren.rocketmq.client.common.ClientErrorCode;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
+import com.bsren.rocketmq.client.hook.CheckForbiddenContext;
 import com.bsren.rocketmq.client.hook.CheckForbiddenHook;
 import com.bsren.rocketmq.client.hook.SendMessageContext;
 import com.bsren.rocketmq.client.hook.SendMessageHook;
@@ -39,15 +40,18 @@ import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 import com.bsren.rocketmq.common.protocol.header.EndTransactionRequestHeader;
+import com.bsren.rocketmq.common.sysflag.MessageSysFlag;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingConnectException;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
 import com.bsren.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.slf4j.Logger;
 
+import java.awt.*;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 
 public class DefaultMQProducerImpl implements MQProducerInner {
@@ -602,7 +606,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     context.setMq(mq);
                     String isTrans = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                     if (isTrans != null && isTrans.equals("true")) {
-                        context.setMsgType(MessageType.Trans_Msg_Half);
+                        context.setMsgType(TrayIcon.MessageType.Trans_Msg_Half);
                     }
 
                     if (msg.getProperty("__STARTDELIVERTIME") != null || msg.getProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL) != null) {

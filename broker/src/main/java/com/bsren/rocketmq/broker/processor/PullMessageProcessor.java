@@ -16,44 +16,44 @@
  */
 package com.bsren.rocketmq.broker.processor;
 
+import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.client.ConsumerGroupInfo;
+import com.bsren.rocketmq.broker.filter.ConsumerFilterData;
+import com.bsren.rocketmq.broker.filter.ConsumerFilterManager;
+import com.bsren.rocketmq.broker.filter.ExpressionForRetryMessageFilter;
+import com.bsren.rocketmq.broker.filter.ExpressionMessageFilter;
+import com.bsren.rocketmq.broker.longpolling.PullRequest;
+import com.bsren.rocketmq.broker.mqtrace.ConsumeMessageHook;
+import com.bsren.rocketmq.common.FAQUrl;
+import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.constant.PermName;
+import com.bsren.rocketmq.common.filter.ExpressionType;
+import com.bsren.rocketmq.common.filter.FilterAPI;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
+import com.bsren.rocketmq.common.protocol.header.PullMessageRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.PullMessageResponseHeader;
+import com.bsren.rocketmq.common.protocol.heartbeat.MessageModel;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.store.GetMessageResult;
+import com.bsren.rocketmq.store.MessageFilter;
 import io.netty.channel.*;
-import org.apache.rocketmq.broker.BrokerController;
-import org.apache.rocketmq.broker.client.ConsumerGroupInfo;
-import org.apache.rocketmq.broker.filter.ConsumerFilterData;
-import org.apache.rocketmq.broker.filter.ConsumerFilterManager;
-import org.apache.rocketmq.broker.filter.ExpressionForRetryMessageFilter;
-import org.apache.rocketmq.broker.filter.ExpressionMessageFilter;
-import org.apache.rocketmq.broker.longpolling.PullRequest;
 import org.apache.rocketmq.broker.mqtrace.ConsumeMessageContext;
-import org.apache.rocketmq.broker.mqtrace.ConsumeMessageHook;
 import org.apache.rocketmq.broker.pagecache.ManyMessageTransfer;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicConfig;
 import org.apache.rocketmq.common.TopicFilterType;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.filter.ExpressionType;
-import org.apache.rocketmq.common.filter.FilterAPI;
-import org.apache.rocketmq.common.help.FAQUrl;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.header.PullMessageRequestHeader;
-import org.apache.rocketmq.common.protocol.header.PullMessageResponseHeader;
-import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.common.protocol.topic.OffsetMovedEvent;
-import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.common.sysflag.PullSysFlag;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.RequestTask;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.store.GetMessageResult;
 import org.apache.rocketmq.store.MessageExtBrokerInner;
-import org.apache.rocketmq.store.MessageFilter;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
@@ -74,7 +74,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
     @Override
     public RemotingCommand processRequest(final ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+                                          RemotingCommand request) throws RemotingCommandException {
         return this.processRequest(ctx.channel(), request, true);
     }
 
@@ -86,7 +86,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
     private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend)
         throws RemotingCommandException {
         RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
-        final PullMessageResponseHeader responseHeader = (PullMessageResponseHeader) response.readCustomHeader();
+        final PullMessageResponseHeader responseHeader = (PullMessageResponseHeader) response.getCustomHeader();
         final PullMessageRequestHeader requestHeader =
             (PullMessageRequestHeader) request.decodeCommandCustomHeader(PullMessageRequestHeader.class);
 

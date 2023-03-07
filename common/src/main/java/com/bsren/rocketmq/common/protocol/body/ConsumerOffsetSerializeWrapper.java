@@ -17,11 +17,14 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * 记录topic -> (queue,offset)
+ */
 public class ConsumerOffsetSerializeWrapper extends RemotingSerializable {
     private ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
         new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);

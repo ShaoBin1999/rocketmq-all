@@ -66,8 +66,8 @@ public class RocketMQSerializable {
         //7.字段
         int mapLenIndex = out.writerIndex();
         out.writeInt(0);
-        if(cmd.readCustomHeader() instanceof FastCodesHeader){
-            ((FastCodesHeader)cmd.readCustomHeader()).encode(out);
+        if(cmd.getCustomHeader() instanceof FastCodesHeader){
+            ((FastCodesHeader)cmd.getCustomHeader()).encode(out);
         }
         HashMap<String, String> map = cmd.getExtFields();
         if(map!=null && !map.isEmpty()){

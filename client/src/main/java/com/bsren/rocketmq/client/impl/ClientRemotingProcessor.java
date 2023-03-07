@@ -25,6 +25,7 @@ import com.bsren.rocketmq.common.message.MessageDecoder;
 import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.body.GetConsumerStatusBody;
 import com.bsren.rocketmq.common.protocol.body.ResetOffsetBody;
 import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 import com.bsren.rocketmq.common.protocol.header.ResetOffsetRequestHeader;

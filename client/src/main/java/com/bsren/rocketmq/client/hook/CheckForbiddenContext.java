@@ -16,10 +16,10 @@
  */
 package com.bsren.rocketmq.client.hook;
 
-import org.apache.rocketmq.client.impl.CommunicationMode;
-import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.client.impl.CommunicationMode;
+import com.bsren.rocketmq.client.producer.SendResult;
+import com.bsren.rocketmq.common.message.Message;
+import com.bsren.rocketmq.common.message.MessageQueue;
 
 public class CheckForbiddenContext {
     private String nameSrvAddr;

@@ -17,7 +17,7 @@
 
 package com.bsren.rocketmq.common.protocol;
 
-import org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode;
+import com.bsren.rocketmq.remoting.protocol.RemotingSysResponseCode;
 
 public class ResponseCode extends RemotingSysResponseCode {
 

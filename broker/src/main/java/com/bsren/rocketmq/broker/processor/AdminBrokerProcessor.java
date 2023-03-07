@@ -18,17 +18,33 @@ package com.bsren.rocketmq.broker.processor;
 
 import com.alibaba.fastjson.JSON;
 import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.client.ClientChannelInfo;
+import com.bsren.rocketmq.broker.client.ConsumerGroupInfo;
+import com.bsren.rocketmq.broker.filter.ConsumerFilterData;
+import com.bsren.rocketmq.broker.filter.ExpressionMessageFilter;
+import com.bsren.rocketmq.common.MQVersion;
+import com.bsren.rocketmq.common.MixAll;
 import com.bsren.rocketmq.common.RemotingHelper;
 import com.bsren.rocketmq.common.TopicConfig;
-import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.common.protocol.RequestCode;
-import com.bsren.rocketmq.common.protocol.body.ConsumerConnection;
-import com.bsren.rocketmq.common.protocol.body.ProducerConnection;
+import com.bsren.rocketmq.common.protocol.body.*;
 import com.bsren.rocketmq.common.protocol.header.*;
+import com.bsren.rocketmq.common.protocol.header.filtersrv.RegisterFilterServerRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.filtersrv.RegisterFilterServerResponseHeader;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
+import com.bsren.rocketmq.filter.util.BitsArray;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.exception.RemotingTimeoutException;
 import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 import com.bsren.rocketmq.remoting.protocol.ResponseCode;
+import com.bsren.rocketmq.store.ConsumeQueue;
+import com.bsren.rocketmq.store.ConsumeQueueExt;
+import com.bsren.rocketmq.store.MessageFilter;
+import com.bsren.rocketmq.store.SelectMappedBufferResult;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -257,7 +273,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     private RemotingCommand getBrokerConfig(ChannelHandlerContext ctx, RemotingCommand request) {
 
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetBrokerConfigResponseHeader.class);
-        final GetBrokerConfigResponseHeader responseHeader = (GetBrokerConfigResponseHeader) response.readCustomHeader();
+        final GetBrokerConfigResponseHeader responseHeader = (GetBrokerConfigResponseHeader) response.getCustomHeader();
 
         String content = this.brokerController.getConfiguration().getAllConfigsFormatString();
         if (content != null && content.length() > 0) {
@@ -282,7 +298,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     private RemotingCommand searchOffsetByTimestamp(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(SearchOffsetResponseHeader.class);
-        final SearchOffsetResponseHeader responseHeader = (SearchOffsetResponseHeader) response.readCustomHeader();
+        final SearchOffsetResponseHeader responseHeader = (SearchOffsetResponseHeader) response.getCustomHeader();
         final SearchOffsetRequestHeader requestHeader =
             (SearchOffsetRequestHeader) request.decodeCommandCustomHeader(SearchOffsetRequestHeader.class);
 
@@ -299,7 +315,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     private RemotingCommand getMaxOffset(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetMaxOffsetResponseHeader.class);
-        final GetMaxOffsetResponseHeader responseHeader = (GetMaxOffsetResponseHeader) response.readCustomHeader();
+        final GetMaxOffsetResponseHeader responseHeader = (GetMaxOffsetResponseHeader) response.getCustomHeader();
         final GetMaxOffsetRequestHeader requestHeader =
             (GetMaxOffsetRequestHeader) request.decodeCommandCustomHeader(GetMaxOffsetRequestHeader.class);
 
@@ -315,7 +331,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     private RemotingCommand getMinOffset(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetMinOffsetResponseHeader.class);
-        final GetMinOffsetResponseHeader responseHeader = (GetMinOffsetResponseHeader) response.readCustomHeader();
+        final GetMinOffsetResponseHeader responseHeader = (GetMinOffsetResponseHeader) response.getCustomHeader();
         final GetMinOffsetRequestHeader requestHeader =
             (GetMinOffsetRequestHeader) request.decodeCommandCustomHeader(GetMinOffsetRequestHeader.class);
 
@@ -330,7 +346,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     private RemotingCommand getEarliestMsgStoretime(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetEarliestMsgStoretimeResponseHeader.class);
-        final GetEarliestMsgStoretimeResponseHeader responseHeader = (GetEarliestMsgStoretimeResponseHeader) response.readCustomHeader();
+        final GetEarliestMsgStoretimeResponseHeader responseHeader = (GetEarliestMsgStoretimeResponseHeader) response.getCustomHeader();
         final GetEarliestMsgStoretimeRequestHeader requestHeader =
             (GetEarliestMsgStoretimeRequestHeader) request.decodeCommandCustomHeader(GetEarliestMsgStoretimeRequestHeader.class);
 
@@ -761,7 +777,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     private RemotingCommand registerFilterServer(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(RegisterFilterServerResponseHeader.class);
-        final RegisterFilterServerResponseHeader responseHeader = (RegisterFilterServerResponseHeader) response.readCustomHeader();
+        final RegisterFilterServerResponseHeader responseHeader = (RegisterFilterServerResponseHeader) response.getCustomHeader();
         final RegisterFilterServerRequestHeader requestHeader =
             (RegisterFilterServerRequestHeader) request.decodeCommandCustomHeader(RegisterFilterServerRequestHeader.class);
 

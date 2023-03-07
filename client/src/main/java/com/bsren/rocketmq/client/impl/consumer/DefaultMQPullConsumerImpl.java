@@ -24,6 +24,7 @@ import com.bsren.rocketmq.client.consumer.store.OffsetStore;
 import com.bsren.rocketmq.client.consumer.store.ReadOffsetType;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
+import com.bsren.rocketmq.client.hook.ConsumeMessageContext;
 import com.bsren.rocketmq.client.hook.ConsumeMessageHook;
 import com.bsren.rocketmq.client.hook.FilterMessageHook;
 import com.bsren.rocketmq.client.impl.factory.MQClientInstance;

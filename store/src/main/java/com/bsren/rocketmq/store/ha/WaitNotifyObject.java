@@ -17,42 +17,49 @@
 package com.bsren.rocketmq.store.ha;
 
 import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.utils.ConcurrentHashMapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+//todo 方法太老了
 public class WaitNotifyObject {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
-    protected final HashMap<Long/* thread id */, Boolean/* notified */> waitingThreadTable =
-            new HashMap<>(16);
+    protected final ConcurrentHashMap<Long/* thread id */, AtomicBoolean/* notified */> waitingThreadTable =
+            new ConcurrentHashMap<>(16);
 
-    protected volatile boolean hasNotified = false;
+    protected AtomicBoolean hasNotified = new AtomicBoolean(false);
 
     public void wakeup() {
-        synchronized (this) {
-            if (!this.hasNotified) {
-                this.hasNotified = true;
+        boolean needNotify = hasNotified.compareAndSet(false, true);
+        if (needNotify) {
+            synchronized (this) {
                 this.notify();
             }
         }
     }
 
     protected void waitForRunning(long interval) {
+        if (this.hasNotified.compareAndSet(true, false)) {
+            this.onWaitEnd();
+            return;
+        }
         synchronized (this) {
-            if (this.hasNotified) {
-                this.hasNotified = false;
-                this.onWaitEnd();
-                return;
-            }
-
             try {
+                if (this.hasNotified.compareAndSet(true, false)) {
+                    this.onWaitEnd();
+                    return;
+                }
                 this.wait(interval);
             } catch (InterruptedException e) {
                 log.error("Interrupted", e);
             } finally {
-                this.hasNotified = false;
+                this.hasNotified.set(false);
                 this.onWaitEnd();
             }
         }
@@ -62,15 +69,14 @@ public class WaitNotifyObject {
     }
 
     public void wakeupAll() {
-        synchronized (this) {
-            boolean needNotify = false;
-
-            for (Boolean value : this.waitingThreadTable.values()) {
-                needNotify = needNotify || !value;
-                value = true;
+        boolean needNotify = false;
+        for (Map.Entry<Long, AtomicBoolean> entry : this.waitingThreadTable.entrySet()) {
+            if (entry.getValue().compareAndSet(false, true)) {
+                needNotify = true;
             }
-
-            if (needNotify) {
+        }
+        if (needNotify) {
+            synchronized (this) {
                 this.notifyAll();
             }
         }
@@ -78,22 +84,31 @@ public class WaitNotifyObject {
 
     public void allWaitForRunning(long interval) {
         long currentThreadId = Thread.currentThread().getId();
+        AtomicBoolean notified = ConcurrentHashMapUtils.computeIfAbsent(this.waitingThreadTable, currentThreadId, k -> new AtomicBoolean(false));
+        if (notified.compareAndSet(true, false)) {
+            this.onWaitEnd();
+            return;
+        }
         synchronized (this) {
-            Boolean notified = this.waitingThreadTable.get(currentThreadId);
-            if (notified != null && notified) {
-                this.waitingThreadTable.put(currentThreadId, false);
-                this.onWaitEnd();
-                return;
-            }
-
             try {
+                if (notified.compareAndSet(true, false)) {
+                    this.onWaitEnd();
+                    return;
+                }
                 this.wait(interval);
             } catch (InterruptedException e) {
                 log.error("Interrupted", e);
             } finally {
-                this.waitingThreadTable.put(currentThreadId, false);
+                notified.set(false);
                 this.onWaitEnd();
             }
+        }
+    }
+
+    public void removeFromWaitingThreadTable() {
+        long currentThreadId = Thread.currentThread().getId();
+        synchronized (this) {
+            this.waitingThreadTable.remove(currentThreadId);
         }
     }
 }

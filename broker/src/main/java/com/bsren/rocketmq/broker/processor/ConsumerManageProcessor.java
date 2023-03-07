@@ -16,17 +16,17 @@
  */
 package com.bsren.rocketmq.broker.processor;
 
+import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.client.ConsumerGroupInfo;
+import com.bsren.rocketmq.common.RemotingHelper;
+import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
+import com.bsren.rocketmq.common.protocol.header.*;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.rocketmq.broker.BrokerController;
-import org.apache.rocketmq.broker.client.ConsumerGroupInfo;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.header.*;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,17 +62,21 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         return false;
     }
 
-    public RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand request)
-        throws RemotingCommandException {
+    /**
+     * 根据group拿到对应的消费者列表
+     * 被consumerManager管理
+     */
+    public RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
+
         final RemotingCommand response =
             RemotingCommand.createResponseCommand(GetConsumerListByGroupResponseHeader.class);
+
         final GetConsumerListByGroupRequestHeader requestHeader =
             (GetConsumerListByGroupRequestHeader) request
                 .decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
 
         ConsumerGroupInfo consumerGroupInfo =
-            this.brokerController.getConsumerManager().getConsumerGroupInfo(
-                requestHeader.getConsumerGroup());
+            this.brokerController.getConsumerManager().getConsumerGroupInfo(requestHeader.getConsumerGroup());
         if (consumerGroupInfo != null) {
             List<String> clientIds = consumerGroupInfo.getAllClientId();
             if (!clientIds.isEmpty()) {
@@ -115,7 +119,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         final RemotingCommand response =
             RemotingCommand.createResponseCommand(QueryConsumerOffsetResponseHeader.class);
         final QueryConsumerOffsetResponseHeader responseHeader =
-            (QueryConsumerOffsetResponseHeader) response.readCustomHeader();
+            (QueryConsumerOffsetResponseHeader) response.getCustomHeader();
         final QueryConsumerOffsetRequestHeader requestHeader =
             (QueryConsumerOffsetRequestHeader) request
                 .decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);

@@ -16,44 +16,43 @@
  */
 package com.bsren.rocketmq.broker;
 
+import com.bsren.rocketmq.broker.client.*;
+import com.bsren.rocketmq.broker.client.net.Broker2Client;
+import com.bsren.rocketmq.broker.client.rebalance.RebalanceLockManager;
+import com.bsren.rocketmq.broker.filter.CommitLogDispatcherCalcBitMap;
+import com.bsren.rocketmq.broker.filter.ConsumerFilterManager;
+import com.bsren.rocketmq.broker.filtersrv.FilterServerManager;
+import com.bsren.rocketmq.broker.latency.BrokerFastFailure;
+import com.bsren.rocketmq.broker.latency.BrokerFixedThreadPoolExecutor;
+import com.bsren.rocketmq.broker.longpolling.NotifyMessageArrivingListener;
+import com.bsren.rocketmq.broker.longpolling.PullRequestHoldService;
+import com.bsren.rocketmq.broker.mqtrace.ConsumeMessageHook;
+import com.bsren.rocketmq.broker.mqtrace.SendMessageHook;
+import com.bsren.rocketmq.broker.offset.ConsumerOffsetManager;
+import com.bsren.rocketmq.broker.out.BrokerOuterAPI;
+import com.bsren.rocketmq.broker.plugin.MessageStoreFactory;
+import com.bsren.rocketmq.broker.plugin.MessageStorePluginContext;
+import com.bsren.rocketmq.broker.processor.*;
+import com.bsren.rocketmq.broker.slave.SlaveSynchronize;
+import com.bsren.rocketmq.broker.subscription.SubscriptionGroupManager;
+import com.bsren.rocketmq.broker.topic.TopicConfigManager;
+import com.bsren.rocketmq.common.*;
 import com.bsren.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.broker.client.*;
-import org.apache.rocketmq.broker.client.net.Broker2Client;
-import org.apache.rocketmq.broker.client.rebalance.RebalanceLockManager;
-import org.apache.rocketmq.broker.filter.CommitLogDispatcherCalcBitMap;
-import org.apache.rocketmq.broker.filter.ConsumerFilterManager;
-import org.apache.rocketmq.broker.filtersrv.FilterServerManager;
-import org.apache.rocketmq.broker.latency.BrokerFastFailure;
-import org.apache.rocketmq.broker.latency.BrokerFixedThreadPoolExecutor;
-import org.apache.rocketmq.broker.longpolling.NotifyMessageArrivingListener;
-import org.apache.rocketmq.broker.longpolling.PullRequestHoldService;
-import org.apache.rocketmq.broker.mqtrace.ConsumeMessageHook;
-import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
-import org.apache.rocketmq.broker.offset.ConsumerOffsetManager;
-import org.apache.rocketmq.broker.out.BrokerOuterAPI;
-import org.apache.rocketmq.broker.plugin.MessageStoreFactory;
-import org.apache.rocketmq.broker.plugin.MessageStorePluginContext;
-import org.apache.rocketmq.broker.processor.*;
-import org.apache.rocketmq.broker.slave.SlaveSynchronize;
-import org.apache.rocketmq.broker.subscription.SubscriptionGroupManager;
-import org.apache.rocketmq.broker.topic.TopicConfigManager;
-import org.apache.rocketmq.common.*;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.namesrv.RegisterBrokerResult;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
-import org.apache.rocketmq.common.stats.MomentStatsItem;
-import org.apache.rocketmq.remoting.RPCHook;
-import org.apache.rocketmq.remoting.RemotingServer;
-import org.apache.rocketmq.remoting.netty.*;
-import org.apache.rocketmq.store.DefaultMessageStore;
-import org.apache.rocketmq.store.MessageArrivingListener;
-import org.apache.rocketmq.store.MessageStore;
-import org.apache.rocketmq.store.config.BrokerRole;
-import org.apache.rocketmq.store.config.MessageStoreConfig;
-import org.apache.rocketmq.store.stats.BrokerStats;
-import org.apache.rocketmq.store.stats.BrokerStatsManager;
+import com.bsren.rocketmq.common.constant.PermName;
+import com.bsren.rocketmq.common.namesrv.RegisterBrokerResult;
+import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
+import com.bsren.rocketmq.common.stats.MomentStatsItem;
+import com.bsren.rocketmq.remoting.RPCHook;
+import com.bsren.rocketmq.remoting.RemotingServer;
+import com.bsren.rocketmq.remoting.netty.*;
+import com.bsren.rocketmq.store.DefaultMessageStore;
+import com.bsren.rocketmq.store.MessageArrivingListener;
+import com.bsren.rocketmq.store.MessageStore;
+import com.bsren.rocketmq.store.config.BrokerRole;
+import com.bsren.rocketmq.store.config.MessageStoreConfig;
+import com.bsren.rocketmq.store.stats.BrokerStats;
+import com.bsren.rocketmq.store.stats.BrokerStatsManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -332,7 +331,12 @@ public class BrokerController {
                 }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
             }
 
+            /**
+             * 如果是从节点，则定期维护4项数据
+             * 如果是主节点，则打印offset的差值
+             */
             if (BrokerRole.SLAVE == this.messageStoreConfig.getBrokerRole()) {
+                //>=6 是什么意思
                 if (this.messageStoreConfig.getHaMasterAddress() != null && this.messageStoreConfig.getHaMasterAddress().length() >= 6) {
                     this.messageStore.updateHaMasterAddress(this.messageStoreConfig.getHaMasterAddress());
                     this.updateMasterHAServerAddrPeriodically = false;
@@ -340,27 +344,19 @@ public class BrokerController {
                     this.updateMasterHAServerAddrPeriodically = true;
                 }
 
-                this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        try {
-                            BrokerController.this.slaveSynchronize.syncAll();
-                        } catch (Throwable e) {
-                            log.error("ScheduledTask syncAll slave exception", e);
-                        }
+                this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                    try {
+                        BrokerController.this.slaveSynchronize.syncAll();
+                    } catch (Throwable e) {
+                        log.error("ScheduledTask syncAll slave exception", e);
                     }
                 }, 1000 * 10, 1000 * 60, TimeUnit.MILLISECONDS);
             } else {
-                this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        try {
-                            BrokerController.this.printMasterAndSlaveDiff();
-                        } catch (Throwable e) {
-                            log.error("schedule printMasterAndSlaveDiff error.", e);
-                        }
+                this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+                    try {
+                        BrokerController.this.printMasterAndSlaveDiff();
+                    } catch (Throwable e) {
+                        log.error("schedule printMasterAndSlaveDiff error.", e);
                     }
                 }, 1000 * 10, 1000 * 60, TimeUnit.MILLISECONDS);
             }
@@ -449,9 +445,7 @@ public class BrokerController {
 
     public void protectBroker() {
         if (this.brokerConfig.isDisableConsumeIfConsumerReadSlowly()) {
-            final Iterator<Map.Entry<String, MomentStatsItem>> it = this.brokerStatsManager.getMomentStatsItemSetFallSize().getStatsItemTable().entrySet().iterator();
-            while (it.hasNext()) {
-                final Map.Entry<String, MomentStatsItem> next = it.next();
+            for (Map.Entry<String, MomentStatsItem> next : this.brokerStatsManager.getMomentStatsItemSetFallSize().getStatsItemTable().entrySet()) {
                 final long fallBehindBytes = next.getValue().getValue().get();
                 if (fallBehindBytes > this.brokerConfig.getConsumerFallbehindThreshold()) {
                     final String[] split = next.getValue().getStatsKey().split("@");

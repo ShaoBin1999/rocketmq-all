@@ -16,6 +16,7 @@
  */
 package com.bsren.rocketmq.client.hook;
 
+import com.bsren.rocketmq.client.impl.CommunicationMode;
 import com.bsren.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import com.bsren.rocketmq.client.producer.SendResult;
 import com.bsren.rocketmq.common.message.Message;

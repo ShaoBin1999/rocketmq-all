@@ -16,29 +16,29 @@
  */
 package com.bsren.rocketmq.broker.processor;
 
+import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.client.ClientChannelInfo;
+import com.bsren.rocketmq.common.MixAll;
+import com.bsren.rocketmq.common.RemotingHelper;
+import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.constant.PermName;
+import com.bsren.rocketmq.common.filter.ExpressionType;
+import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
+import com.bsren.rocketmq.common.protocol.body.CheckClientRequestBody;
+import com.bsren.rocketmq.common.protocol.header.UnregisterClientRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.UnregisterClientResponseHeader;
+import com.bsren.rocketmq.common.protocol.heartbeat.ConsumerData;
+import com.bsren.rocketmq.common.protocol.heartbeat.HeartbeatData;
+import com.bsren.rocketmq.common.protocol.heartbeat.ProducerData;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
+import com.bsren.rocketmq.common.sysflag.TopicSysFlag;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.rocketmq.broker.BrokerController;
-import org.apache.rocketmq.broker.client.ClientChannelInfo;
-import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.filter.ExpressionType;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.body.CheckClientRequestBody;
-import org.apache.rocketmq.common.protocol.header.UnregisterClientRequestHeader;
-import org.apache.rocketmq.common.protocol.header.UnregisterClientResponseHeader;
-import org.apache.rocketmq.common.protocol.heartbeat.ConsumerData;
-import org.apache.rocketmq.common.protocol.heartbeat.HeartbeatData;
-import org.apache.rocketmq.common.protocol.heartbeat.ProducerData;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
-import org.apache.rocketmq.common.sysflag.TopicSysFlag;
-import org.apache.rocketmq.filter.FilterFactory;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.filter.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +71,9 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * 生产端会把订阅的主题发送给broker
+     */
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
@@ -83,8 +86,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
 
         for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
             SubscriptionGroupConfig subscriptionGroupConfig =
-                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(
-                    data.getGroupName());
+                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
             boolean isNotifyConsumerIdsChangedEnable = true;
             if (null != subscriptionGroupConfig) {
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
@@ -94,9 +96,10 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                 }
                 String newTopic = MixAll.getRetryTopic(data.getGroupName());
                 this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
-                    newTopic,
-                    subscriptionGroupConfig.getRetryQueueNums(),
-                    PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
+                        newTopic,
+                        subscriptionGroupConfig.getRetryQueueNums(),
+                        PermName.PERM_WRITE | PermName.PERM_READ,
+                        topicSysFlag);
             }
 
             boolean changed = this.brokerController.getConsumerManager().registerConsumer(
@@ -111,7 +114,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
 
             if (changed) {
                 log.info("registerConsumer info changed {} {}",
-                    data.toString(),
+                        data,
                     RemotingHelper.parseChannelRemoteAddr(ctx.channel())
                 );
             }
@@ -164,6 +167,9 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 检查clientConfig里 sql表达式是否合适
+     */
     public RemotingCommand checkClientConfig(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
@@ -174,12 +180,13 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         if (requestBody != null && requestBody.getSubscriptionData() != null) {
             SubscriptionData subscriptionData = requestBody.getSubscriptionData();
 
-            if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+            if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {  //如果是tag类型，则直接返回
                 response.setCode(ResponseCode.SUCCESS);
                 response.setRemark(null);
                 return response;
             }
 
+            //如果用的是sql92但是又不开启propertyFilter则直接报错
             if (!this.brokerController.getBrokerConfig().isEnablePropertyFilter()) {
                 response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("The broker does not support consumer to filter message by " + subscriptionData.getExpressionType());
@@ -196,7 +203,6 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                 return response;
             }
         }
-
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;

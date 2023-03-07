@@ -16,6 +16,18 @@
  */
 package com.bsren.rocketmq.broker.processor;
 
+import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.mqtrace.SendMessageHook;
+import com.bsren.rocketmq.common.MixAll;
+import com.bsren.rocketmq.common.RemotingHelper;
+import com.bsren.rocketmq.common.TopicConfig;
+import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
+import com.bsren.rocketmq.common.protocol.header.SendMessageRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.SendMessageResponseHeader;
+import com.bsren.rocketmq.common.sysflag.TopicSysFlag;
+import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
+import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
@@ -160,7 +172,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     }
 
     protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
+                                       final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
         if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
             && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);
@@ -305,7 +317,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 try {
                     if (response != null) {
                         final SendMessageResponseHeader responseHeader =
-                            (SendMessageResponseHeader) response.readCustomHeader();
+                            (SendMessageResponseHeader) response.getCustomHeader();
                         context.setMsgId(responseHeader.getMsgId());
                         context.setQueueId(responseHeader.getQueueId());
                         context.setQueueOffset(responseHeader.getQueueOffset());

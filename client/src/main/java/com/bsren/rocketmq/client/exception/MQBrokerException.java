@@ -16,8 +16,8 @@
  */
 package com.bsren.rocketmq.client.exception;
 
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.help.FAQUrl;
+import com.bsren.rocketmq.common.FAQUrl;
+import com.bsren.rocketmq.common.UtilAll;
 
 public class MQBrokerException extends Exception {
     private static final long serialVersionUID = 5975020272601250368L;

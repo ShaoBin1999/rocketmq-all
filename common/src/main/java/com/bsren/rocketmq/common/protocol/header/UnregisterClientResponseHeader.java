@@ -17,8 +17,8 @@
 
 package com.bsren.rocketmq.common.protocol.header;
 
-import org.apache.rocketmq.remoting.CommandCustomHeader;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.CommandCustomHeader;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 
 public class UnregisterClientResponseHeader implements CommandCustomHeader {
 

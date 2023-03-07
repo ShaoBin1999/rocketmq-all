@@ -17,8 +17,8 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.common.message.MessageQueueForC;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.common.message.MessageQueueForC;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.List;
 

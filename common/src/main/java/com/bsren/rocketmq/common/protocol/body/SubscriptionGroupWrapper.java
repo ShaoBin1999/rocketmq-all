@@ -17,12 +17,13 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.common.DataVersion;
-import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.common.DataVersion;
+import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 
 public class SubscriptionGroupWrapper extends RemotingSerializable {
     private ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable =

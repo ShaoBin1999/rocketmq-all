@@ -82,6 +82,10 @@ public class HAService {
         return result;
     }
 
+    /**
+     * 触发this.groupTransferService.notifyTransferSome();
+     * 修改push2SlaveMaxOffset
+     */
     public void notifyTransferSome(final long offset) {
         for (long value = this.push2SlaveMaxOffset.get(); offset > value; ) {
             boolean ok = this.push2SlaveMaxOffset.compareAndSet(value, offset);
@@ -329,7 +333,7 @@ public class HAService {
         private long lastWriteTimestamp = System.currentTimeMillis();
 
         private long currentReportedOffset = 0;
-        private int dispatchPostion = 0;
+        private int dispatchPosition = 0;
         private ByteBuffer byteBufferRead = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);
         private ByteBuffer byteBufferBackup = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);
 
@@ -348,10 +352,9 @@ public class HAService {
         private boolean isTimeToReportOffset() {
             long interval =
                 HAService.this.defaultMessageStore.getSystemClock().now() - this.lastWriteTimestamp;
-            boolean needHeart = interval > HAService.this.defaultMessageStore.getMessageStoreConfig()
-                .getHaSendHeartbeatInterval();
 
-            return needHeart;
+            return interval > HAService.this.defaultMessageStore.getMessageStoreConfig()
+                .getHaSendHeartbeatInterval();
         }
 
         private boolean reportSlaveMaxOffset(final long maxOffset) {
@@ -375,9 +378,9 @@ public class HAService {
         }
 
         private void reallocateByteBuffer() {
-            int remain = READ_MAX_BUFFER_SIZE - this.dispatchPostion;
+            int remain = READ_MAX_BUFFER_SIZE - this.dispatchPosition;
             if (remain > 0) {
-                this.byteBufferRead.position(this.dispatchPostion);
+                this.byteBufferRead.position(this.dispatchPosition);
 
                 this.byteBufferBackup.position(0);
                 this.byteBufferBackup.limit(READ_MAX_BUFFER_SIZE);
@@ -388,7 +391,7 @@ public class HAService {
 
             this.byteBufferRead.position(remain);
             this.byteBufferRead.limit(READ_MAX_BUFFER_SIZE);
-            this.dispatchPostion = 0;
+            this.dispatchPosition = 0;
         }
 
         private void swapByteBuffer() {
@@ -432,10 +435,10 @@ public class HAService {
             int readSocketPos = this.byteBufferRead.position();
 
             while (true) {
-                int diff = this.byteBufferRead.position() - this.dispatchPostion;
+                int diff = this.byteBufferRead.position() - this.dispatchPosition;
                 if (diff >= msgHeaderSize) {
-                    long masterPhyOffset = this.byteBufferRead.getLong(this.dispatchPostion);
-                    int bodySize = this.byteBufferRead.getInt(this.dispatchPostion + 8);
+                    long masterPhyOffset = this.byteBufferRead.getLong(this.dispatchPosition);
+                    int bodySize = this.byteBufferRead.getInt(this.dispatchPosition + 8);
 
                     long slavePhyOffset = HAService.this.defaultMessageStore.getMaxPhyOffset();
 
@@ -449,13 +452,13 @@ public class HAService {
 
                     if (diff >= (msgHeaderSize + bodySize)) {
                         byte[] bodyData = new byte[bodySize];
-                        this.byteBufferRead.position(this.dispatchPostion + msgHeaderSize);
+                        this.byteBufferRead.position(this.dispatchPosition + msgHeaderSize);
                         this.byteBufferRead.get(bodyData);
 
                         HAService.this.defaultMessageStore.appendToCommitLog(masterPhyOffset, bodyData);
 
                         this.byteBufferRead.position(readSocketPos);
-                        this.dispatchPostion += msgHeaderSize + bodySize;
+                        this.dispatchPosition += msgHeaderSize + bodySize;
 
                         if (!reportSlaveMaxOffsetPlus()) {
                             return false;
@@ -496,11 +499,9 @@ public class HAService {
                 if (addr != null) {
 
                     SocketAddress socketAddress = RemotingUtil.string2SocketAddress(addr);
-                    if (socketAddress != null) {
-                        this.socketChannel = RemotingUtil.connect(socketAddress);
-                        if (this.socketChannel != null) {
-                            this.socketChannel.register(this.selector, SelectionKey.OP_READ);
-                        }
+                    this.socketChannel = RemotingUtil.connect(socketAddress);
+                    if (this.socketChannel != null) {
+                        this.socketChannel.register(this.selector, SelectionKey.OP_READ);
                     }
                 }
 
@@ -529,7 +530,7 @@ public class HAService {
                 }
 
                 this.lastWriteTimestamp = 0;
-                this.dispatchPostion = 0;
+                this.dispatchPosition = 0;
 
                 this.byteBufferBackup.position(0);
                 this.byteBufferBackup.limit(READ_MAX_BUFFER_SIZE);
@@ -586,26 +587,6 @@ public class HAService {
 
             log.info(this.getServiceName() + " service end");
         }
-        // private void disableWriteFlag() {
-        // if (this.socketChannel != null) {
-        // SelectionKey sk = this.socketChannel.keyFor(this.selector);
-        // if (sk != null) {
-        // int ops = sk.interestOps();
-        // ops &= ~SelectionKey.OP_WRITE;
-        // sk.interestOps(ops);
-        // }
-        // }
-        // }
-        // private void enableWriteFlag() {
-        // if (this.socketChannel != null) {
-        // SelectionKey sk = this.socketChannel.keyFor(this.selector);
-        // if (sk != null) {
-        // int ops = sk.interestOps();
-        // ops |= SelectionKey.OP_WRITE;
-        // sk.interestOps(ops);
-        // }
-        // }
-        // }
 
         @Override
         public String getServiceName() {

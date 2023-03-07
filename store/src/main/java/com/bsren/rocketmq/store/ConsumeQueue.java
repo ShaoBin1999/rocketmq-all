@@ -25,6 +25,21 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+/**
+ * 在存储基础目录下，以topic/queueId目录进行组织的。
+ * 和CommitLog不同的是，ConsumeQueue储存的每一条记录都是定长。固定为20字节
+ * 一个ConsumeQueue的MappedFile文件可以存储30W条记录。
+ * ConsumeQueue实现的功能是：存储topic下一个queueId的消息在CommitLog中的位置。可以理解为一个索引文件。
+ * 这样做的好处是：当一个消息被投递到broker，消息写入CommitLog和ConsumeQueue都是顺序写磁盘。
+ * 消息消费时，先读取ConsumeQueue，读取文件内容也是顺序读，读取到message在CommitLog中的索引后，
+ * 再去读取CommitLog，这个CommitLog读取的内容其实也是顺序读取的，ConsumeQueue存储的数据是先到先存，
+ * 所以取出的ConsumeQueue的数据指向的CommitLog的位置也是有序的。这种设计方式充分利用了机械硬盘的物理特点，最大化磁盘读写吞吐量。
+ *
+ * consumequeue文件中都存储的信息如下：
+ * 消息在commitlog中的偏移量（8字节）
+ * 消息的大小（4字节）
+ * 消息tag的hashcode（8字节，存储tag的hashcode的原因是每个consumequeue条目都是定长的）
+ */
 public class ConsumeQueue {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
@@ -45,11 +60,12 @@ public class ConsumeQueue {
     private ConsumeQueueExt consumeQueueExt = null;
 
     public ConsumeQueue(
-        final String topic,
-        final int queueId,
-        final String storePath,
-        final int mappedFileSize,
-        final DefaultMessageStore defaultMessageStore) {
+            final String topic,
+            final int queueId,
+            final String storePath,
+            final int mappedFileSize,
+            final DefaultMessageStore defaultMessageStore) {
+
         this.storePath = storePath;
         this.mappedFileSize = mappedFileSize;
         this.defaultMessageStore = defaultMessageStore;
@@ -57,12 +73,8 @@ public class ConsumeQueue {
         this.topic = topic;
         this.queueId = queueId;
 
-        String queueDir = this.storePath
-            + File.separator + topic
-            + File.separator + queueId;
-
+        String queueDir = this.storePath + File.separator + topic + File.separator + queueId;
         this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);
-
         this.byteBufferIndex = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
 
         if (defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt()) {
@@ -85,11 +97,13 @@ public class ConsumeQueue {
         return result;
     }
 
+    /**
+     * 从文件中恢复数据
+     */
     public void recover() {
         final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
         if (!mappedFiles.isEmpty()) {
-
-            int index = mappedFiles.size() - 3;
+            int index = mappedFiles.size() - 3;   //只恢复最近的3个
             if (index < 0)
                 index = 0;
 
@@ -121,7 +135,6 @@ public class ConsumeQueue {
                 if (mappedFileOffset == mappedFileSizeLogics) {
                     index++;
                     if (index >= mappedFiles.size()) {
-
                         log.info("recover last consume queue file over, last mapped file "
                             + mappedFile.getFileName());
                         break;
@@ -152,6 +165,9 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 返回第几个记录在timestamp处
+     */
     public long getOffsetInQueueByTime(final long timestamp) {
         MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);
         if (mappedFile != null) {

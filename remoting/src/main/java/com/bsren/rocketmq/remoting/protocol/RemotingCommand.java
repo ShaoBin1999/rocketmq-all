@@ -13,7 +13,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -480,7 +479,7 @@ public class RemotingCommand {
         }
     }
 
-    public CommandCustomHeader readCustomHeader() {
+    public CommandCustomHeader getCustomHeader() {
         return customHeader;
     }
 

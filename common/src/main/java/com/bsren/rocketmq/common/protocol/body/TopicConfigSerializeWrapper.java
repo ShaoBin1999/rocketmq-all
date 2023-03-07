@@ -17,16 +17,19 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.common.DataVersion;
-import org.apache.rocketmq.common.TopicConfig;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.common.DataVersion;
+import com.bsren.rocketmq.common.TopicConfig;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * topicName->topicConfig的映射
+ */
 public class TopicConfigSerializeWrapper extends RemotingSerializable {
     private ConcurrentMap<String, TopicConfig> topicConfigTable =
-        new ConcurrentHashMap<String, TopicConfig>();
+            new ConcurrentHashMap<>();
     private DataVersion dataVersion = new DataVersion();
 
     public ConcurrentMap<String, TopicConfig> getTopicConfigTable() {

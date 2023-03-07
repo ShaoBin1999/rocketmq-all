@@ -156,7 +156,7 @@ public class IndexService {
     }
 
     public QueryOffsetResult queryOffset(String topic, String key, int maxNum, long begin, long end) {
-        List<Long> phyOffsets = new ArrayList<Long>(maxNum);
+        List<Long> phyOffsets = new ArrayList<>(maxNum);
 
         long indexLastUpdateTimestamp = 0;
         long indexLastUpdatePhyoffset = 0;
