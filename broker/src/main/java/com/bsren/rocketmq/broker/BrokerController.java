@@ -18,7 +18,7 @@ package com.bsren.rocketmq.broker;
 
 import com.bsren.rocketmq.broker.client.*;
 import com.bsren.rocketmq.broker.client.net.Broker2Client;
-import com.bsren.rocketmq.broker.client.rebalance.RebalanceLockManager;
+import com.bsren.rocketmq.broker.client.rebalance.ReBalanceLockManager;
 import com.bsren.rocketmq.broker.filter.CommitLogDispatcherCalcBitMap;
 import com.bsren.rocketmq.broker.filter.ConsumerFilterManager;
 import com.bsren.rocketmq.broker.filtersrv.FilterServerManager;
@@ -59,7 +59,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -83,7 +82,7 @@ public class BrokerController {
     private final Broker2Client broker2Client;
     private final SubscriptionGroupManager subscriptionGroupManager;
     private final ConsumerIdsChangeListener consumerIdsChangeListener;
-    private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
+    private final ReBalanceLockManager rebalanceLockManager = new ReBalanceLockManager();
     private final BrokerOuterAPI brokerOuterAPI;
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "BrokerControllerScheduledThread"));
@@ -723,7 +722,7 @@ public class BrokerController {
         return this.brokerConfig.getBrokerIP2() + ":" + this.messageStoreConfig.getHaListenPort();
     }
 
-    public RebalanceLockManager getRebalanceLockManager() {
+    public ReBalanceLockManager getRebalanceLockManager() {
         return rebalanceLockManager;
     }
 

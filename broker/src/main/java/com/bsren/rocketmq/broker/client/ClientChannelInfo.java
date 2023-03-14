@@ -19,6 +19,13 @@ package com.bsren.rocketmq.broker.client;
 import com.bsren.rocketmq.remoting.protocol.LanguageCode;
 import io.netty.channel.Channel;
 
+/**
+ * channel
+ * clientId
+ * language
+ * version
+ * lastUpdateTime
+ */
 public class ClientChannelInfo {
     private final Channel channel;
     private final String clientId;

@@ -17,8 +17,8 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.UtilAll;
+import com.bsren.rocketmq.common.message.MessageQueue;
 
 import java.util.Date;
 

@@ -19,6 +19,10 @@ package com.bsren.rocketmq.store;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+/**
+ * 因为 SQL92 是根据消息体中的属性进行过滤，故需要访问CommitLog 文件，也就是消息体
+ * 而tag的话就和消息本身没有关系
+ */
 public interface MessageFilter {
     /**
      * match by tags code or filter bit map which is calculated when message received

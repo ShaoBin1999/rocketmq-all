@@ -48,10 +48,10 @@ public class ConsumerFilterManager extends ConfigManager {
     private static final long MS_24_HOUR = 24 * 3600 * 1000;
 
     private ConcurrentMap<String/*Topic*/, FilterDataMapByTopic>
-        filterDataByTopic = new ConcurrentHashMap<String/*consumer group*/, FilterDataMapByTopic>(256);
+        filterDataByTopic = new ConcurrentHashMap<>(256);
 
     private transient BrokerController brokerController;
-    private transient BloomFilter bloomFilter;
+    private final transient BloomFilter bloomFilter;
 
     public ConsumerFilterManager() {
         // just for test
@@ -346,8 +346,11 @@ public class ConsumerFilterManager extends ConfigManager {
         /**
          * register ConsumerFilterData for given consumerGroup
          */
-        public boolean register(String consumerGroup, String expression,
-                                String type, BloomFilterData bloomFilterData, long clientVersion) {
+        public boolean register(String consumerGroup,
+                                String expression,
+                                String type,
+                                BloomFilterData bloomFilterData,
+                                long clientVersion) {
             ConsumerFilterData old = this.groupFilterData.get(consumerGroup);
 
             if (old == null) {
@@ -380,7 +383,8 @@ public class ConsumerFilterManager extends ConfigManager {
                         return true;
                     }
                 }
-            } else {
+            }
+            else {
                 if (clientVersion <= old.getClientVersion()) {
                     if (!type.equals(old.getExpressionType()) || !expression.equals(old.getExpression())) {
                         log.info("Ignore consumer({}:{}) filter, because of version {} <= {}, but maybe info changed!old={}:{}, ignored={}:{}",

@@ -28,6 +28,7 @@ import com.bsren.rocketmq.common.protocol.RequestCode;
 import com.bsren.rocketmq.common.protocol.body.GetConsumerStatusBody;
 import com.bsren.rocketmq.common.protocol.body.ResetOffsetBody;
 import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.ConsumeMessageDirectlyResultRequestHeader;
 import com.bsren.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;

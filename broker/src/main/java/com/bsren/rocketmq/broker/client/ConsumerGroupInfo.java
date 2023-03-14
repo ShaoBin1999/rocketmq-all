@@ -46,7 +46,7 @@ public class ConsumerGroupInfo {
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable =
             new ConcurrentHashMap<>();
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
-        new ConcurrentHashMap<Channel, ClientChannelInfo>(16);
+            new ConcurrentHashMap<>(16);
     private volatile ConsumeType consumeType;
     private volatile MessageModel messageModel;
     private volatile ConsumeFromWhere consumeFromWhere;

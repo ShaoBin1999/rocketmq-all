@@ -15,9 +15,6 @@
  * limitations under the License.
  */
 
-/**
- * $Id: SubscriptionData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $
- */
 package com.bsren.rocketmq.common.protocol.heartbeat;
 
 import com.alibaba.fastjson.annotation.JSONField;
@@ -25,13 +22,22 @@ import com.alibaba.fastjson.annotation.JSONField;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * classFilterMode 消息过滤模式，如果为 true, 表示使用上传过滤类来进行消息过滤，默认为使用tag来进行消息过滤。
+ * topic : 订阅的消息主题。
+ * subString: 消息订阅子模式字符串，如果classFilterMode=true,则表示过滤类的全路径名，如果classFilterMode=false,表示订阅子模式（tag或SQL92表达式）。
+ * tagsSet : 订阅的tag,,因为消费者订阅时，可以使用 "TAG1 || TAG2 || TAG3"。
+ * codeSet : 订阅的tag 的hashcode集合。
+ * subVersion : 版本。
+ * expressionType : tag过滤类型，分为 TAG 、SQL92。
+ */
 public class SubscriptionData implements Comparable<SubscriptionData> {
     public final static String SUB_ALL = "*";
     private boolean classFilterMode = false;
     private String topic;
     private String subString;
-    private Set<String> tagsSet = new HashSet<String>();
-    private Set<Integer> codeSet = new HashSet<Integer>();
+    private Set<String> tagsSet = new HashSet<>();
+    private Set<Integer> codeSet = new HashSet<>();
     private long subVersion = System.currentTimeMillis();
     private String expressionType;
 

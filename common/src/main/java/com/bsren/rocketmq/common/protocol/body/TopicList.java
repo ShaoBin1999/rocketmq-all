@@ -16,7 +16,7 @@
  */
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.HashSet;
 import java.util.Set;

@@ -19,9 +19,7 @@ package com.bsren.rocketmq.broker.filter;
 
 import com.bsren.rocketmq.common.constant.LoggerName;
 import com.bsren.rocketmq.common.filter.ExpressionType;
-import com.bsren.rocketmq.common.filter.FilterContext;
 import com.bsren.rocketmq.common.message.MessageDecoder;
-import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import com.bsren.rocketmq.filter.util.BitsArray;
 import com.bsren.rocketmq.filter.util.BloomFilter;
@@ -42,8 +40,10 @@ public class ExpressionMessageFilter implements MessageFilter {
     protected final ConsumerFilterManager consumerFilterManager;
     protected final boolean bloomDataValid;
 
-    public ExpressionMessageFilter(SubscriptionData subscriptionData, ConsumerFilterData consumerFilterData,
-        ConsumerFilterManager consumerFilterManager) {
+    public ExpressionMessageFilter(
+            SubscriptionData subscriptionData,
+            ConsumerFilterData consumerFilterData,
+            ConsumerFilterManager consumerFilterManager) {
         this.subscriptionData = subscriptionData;
         this.consumerFilterData = consumerFilterData;
         this.consumerFilterManager = consumerFilterManager;

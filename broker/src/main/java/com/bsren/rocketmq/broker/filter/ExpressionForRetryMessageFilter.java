@@ -19,12 +19,9 @@ package com.bsren.rocketmq.broker.filter;
 
 import com.bsren.rocketmq.common.MixAll;
 import com.bsren.rocketmq.common.filter.ExpressionType;
+import com.bsren.rocketmq.common.message.MessageConst;
+import com.bsren.rocketmq.common.message.MessageDecoder;
 import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.filter.ExpressionType;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageDecoder;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -91,7 +88,7 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
 
         log.debug("Pull eval result: {}, {}, {}", ret, realFilterData, tempProperties);
 
-        if (ret == null || !(ret instanceof Boolean)) {
+        if (!(ret instanceof Boolean)) {
             return false;
         }
 

@@ -31,8 +31,10 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * ConcurrentMap<String,ConcurrentHashMap<MessageQueue, LockEntry>>
  * group->map<messageQueue,entry>的一个锁
+ * lockEntry = clientId+lastUpdateTime
+ * 锁管理
  */
-public class RebalanceLockManager {
+public class ReBalanceLockManager {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.REBALANCE_LOCK_LOGGER_NAME);
     private final static long REBALANCE_LOCK_MAX_LIVE_TIME = Long.parseLong(System.getProperty(
         "rocketmq.broker.rebalance.lockMaxLiveTime", "60000"));
@@ -113,8 +115,11 @@ public class RebalanceLockManager {
         return false;
     }
 
-    public Set<MessageQueue> tryLockBatch(final String group, final Set<MessageQueue> mqs,
-        final String clientId) {
+    public Set<MessageQueue> tryLockBatch(
+            final String group,
+            final Set<MessageQueue> mqs,
+            final String clientId) {
+
         Set<MessageQueue> lockedMqs = new HashSet<>(mqs.size());
         Set<MessageQueue> notLockedMqs = new HashSet<>(mqs.size());
 
