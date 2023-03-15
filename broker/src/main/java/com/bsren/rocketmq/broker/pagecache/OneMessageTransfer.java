@@ -48,10 +48,6 @@ public class OneMessageTransfer extends AbstractReferenceCounted implements File
         return 0;
     }
 
-    @Override
-    public long transferred() {
-        return transferred;
-    }
 
     @Override
     public long count() {
@@ -71,10 +67,6 @@ public class OneMessageTransfer extends AbstractReferenceCounted implements File
         return 0;
     }
 
-    @Override
-    public FileRegion touch(Object hint) {
-        return null;
-    }
 
     public void close() {
         this.deallocate();

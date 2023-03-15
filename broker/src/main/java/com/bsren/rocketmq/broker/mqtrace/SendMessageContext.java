@@ -16,8 +16,8 @@
  */
 package com.bsren.rocketmq.broker.mqtrace;
 
-import org.apache.rocketmq.common.message.MessageType;
-import org.apache.rocketmq.store.stats.BrokerStatsManager;
+import com.bsren.rocketmq.common.message.MessageType;
+import com.bsren.rocketmq.store.stats.BrokerStatsManager;
 
 import java.util.Properties;
 

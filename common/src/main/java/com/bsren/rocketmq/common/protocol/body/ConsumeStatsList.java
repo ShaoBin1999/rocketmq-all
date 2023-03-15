@@ -16,9 +16,8 @@
  */
 package com.bsren.rocketmq.common.protocol.body;
 
+import com.bsren.rocketmq.common.admin.ConsumeStats;
 import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
-import org.apache.rocketmq.common.admin.ConsumeStats;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -29,6 +29,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+/**
+ * 同步四种信息
+ * 1. TopicConfig
+ * 2. ConsumerOffset
+ * 3. DelayOffset
+ * 4. SubscriptionGroupConfig
+ */
 public class SlaveSynchronize {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -102,7 +109,7 @@ public class SlaveSynchronize {
     }
 
     /**
-     * 同步延迟信息,罗盘
+     * 同步延迟队列信息,罗盘
      */
     private void syncDelayOffset() {
         String masterAddrBak = this.masterAddr;
@@ -111,10 +118,7 @@ public class SlaveSynchronize {
                 String delayOffset =
                     this.brokerController.getBrokerOuterAPI().getAllDelayOffset(masterAddrBak);
                 if (delayOffset != null) {
-
-                    String fileName =
-                        StorePathConfigHelper.getDelayOffsetStorePath(this.brokerController
-                            .getMessageStoreConfig().getStorePathRootDir());
+                    String fileName = StorePathConfigHelper.getDelayOffsetStorePath(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
                     try {
                         MixAll.string2File(delayOffset, fileName);
                     } catch (IOException e) {

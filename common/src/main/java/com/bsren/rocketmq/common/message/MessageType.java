@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.broker.mqtrace;
 
-public interface SendMessageHook {
-    String hookName();
+package com.bsren.rocketmq.common.message;
 
-    void sendMessageBefore(final SendMessageContext context);
-
-    void sendMessageAfter(final SendMessageContext context);
+public enum MessageType {
+    Normal_Msg,
+    Trans_Msg_Half,
+    Trans_msg_Commit,
+    Delay_Msg,
 }

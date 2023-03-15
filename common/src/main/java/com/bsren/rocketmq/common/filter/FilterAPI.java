@@ -16,7 +16,7 @@
  */
 package com.bsren.rocketmq.common.filter;
 
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
 import java.net.URL;
 
@@ -66,7 +66,7 @@ public class FilterAPI {
     }
 
     public static SubscriptionData build(final String topic, final String subString,
-        final String type) throws Exception {
+                                         final String type) throws Exception {
         if (ExpressionType.TAG.equals(type) || type == null) {
             return buildSubscriptionData(null, topic, subString);
         }

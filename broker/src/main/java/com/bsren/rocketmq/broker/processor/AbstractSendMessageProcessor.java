@@ -17,44 +17,28 @@
 package com.bsren.rocketmq.broker.processor;
 
 import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.mqtrace.SendMessageContext;
 import com.bsren.rocketmq.broker.mqtrace.SendMessageHook;
-import com.bsren.rocketmq.common.MixAll;
-import com.bsren.rocketmq.common.RemotingHelper;
-import com.bsren.rocketmq.common.TopicConfig;
+import com.bsren.rocketmq.common.*;
+import com.bsren.rocketmq.common.constant.DBMsgConstants;
 import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.constant.PermName;
+import com.bsren.rocketmq.common.message.MessageAccessor;
+import com.bsren.rocketmq.common.message.MessageConst;
+import com.bsren.rocketmq.common.message.MessageDecoder;
+import com.bsren.rocketmq.common.protocol.RequestCode;
 import com.bsren.rocketmq.common.protocol.ResponseCode;
 import com.bsren.rocketmq.common.protocol.header.SendMessageRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.SendMessageRequestHeaderV2;
 import com.bsren.rocketmq.common.protocol.header.SendMessageResponseHeader;
+import com.bsren.rocketmq.common.sysflag.MessageSysFlag;
 import com.bsren.rocketmq.common.sysflag.TopicSysFlag;
+import com.bsren.rocketmq.common.utils.ChannelUtil;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.store.MessageExtBrokerInner;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.rocketmq.broker.BrokerController;
-import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
-import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
-import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.TopicConfig;
-import org.apache.rocketmq.common.TopicFilterType;
-import org.apache.rocketmq.common.constant.DBMsgConstants;
-import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.help.FAQUrl;
-import org.apache.rocketmq.common.message.MessageAccessor;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageDecoder;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
-import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeaderV2;
-import org.apache.rocketmq.common.protocol.header.SendMessageResponseHeader;
-import org.apache.rocketmq.common.sysflag.MessageSysFlag;
-import org.apache.rocketmq.common.sysflag.TopicSysFlag;
-import org.apache.rocketmq.common.utils.ChannelUtil;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.store.MessageExtBrokerInner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +97,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     }
 
     protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
+                                                  final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
         int queueIdInt = requestHeader.getQueueId();
         if (queueIdInt < 0) {
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
@@ -188,8 +172,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             return response;
         }
 
-        TopicConfig topicConfig =
-            this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
+        TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
         if (null == topicConfig) {
             int topicSysFlag = 0;
             if (requestHeader.isUnitMode()) {

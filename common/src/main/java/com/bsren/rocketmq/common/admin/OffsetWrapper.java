@@ -14,12 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.broker.mqtrace;
+package com.bsren.rocketmq.common.admin;
 
-public interface SendMessageHook {
-    String hookName();
+public class OffsetWrapper {
+    private long brokerOffset;
+    private long consumerOffset;
 
-    void sendMessageBefore(final SendMessageContext context);
+    private long lastTimestamp;
 
-    void sendMessageAfter(final SendMessageContext context);
+    public long getBrokerOffset() {
+        return brokerOffset;
+    }
+
+    public void setBrokerOffset(long brokerOffset) {
+        this.brokerOffset = brokerOffset;
+    }
+
+    public long getConsumerOffset() {
+        return consumerOffset;
+    }
+
+    public void setConsumerOffset(long consumerOffset) {
+        this.consumerOffset = consumerOffset;
+    }
+
+    public long getLastTimestamp() {
+        return lastTimestamp;
+    }
+
+    public void setLastTimestamp(long lastTimestamp) {
+        this.lastTimestamp = lastTimestamp;
+    }
 }

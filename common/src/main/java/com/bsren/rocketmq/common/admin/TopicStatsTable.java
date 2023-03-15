@@ -14,12 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.broker.mqtrace;
+package com.bsren.rocketmq.common.admin;
 
-public interface SendMessageHook {
-    String hookName();
+import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
-    void sendMessageBefore(final SendMessageContext context);
+import java.util.HashMap;
 
-    void sendMessageAfter(final SendMessageContext context);
+public class TopicStatsTable extends RemotingSerializable {
+    private HashMap<MessageQueue, TopicOffset> offsetTable = new HashMap<MessageQueue, TopicOffset>();
+
+    public HashMap<MessageQueue, TopicOffset> getOffsetTable() {
+        return offsetTable;
+    }
+
+    public void setOffsetTable(HashMap<MessageQueue, TopicOffset> offsetTable) {
+        this.offsetTable = offsetTable;
+    }
 }

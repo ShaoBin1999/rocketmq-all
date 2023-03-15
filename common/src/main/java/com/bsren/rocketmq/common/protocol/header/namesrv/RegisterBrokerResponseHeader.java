@@ -21,6 +21,7 @@ import com.bsren.rocketmq.remoting.CommandCustomHeader;
 import com.bsren.rocketmq.remoting.annotation.CFNullable;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 
+
 public class RegisterBrokerResponseHeader implements CommandCustomHeader {
     @CFNullable
     private String haServerAddr;

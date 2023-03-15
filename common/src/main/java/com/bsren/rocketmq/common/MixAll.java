@@ -30,6 +30,13 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * public static final String DEFAULT_TOPIC = "TBW102";
+ * 系统默认的一个 Topic（TBW102）被删掉了，
+ * 默认开启允许自动创建Topic主题的情况下，
+ * brocker启动时会自动创建一个名称为TBW102的默认Topic，
+ * 生产这就是利用这个Topic来进行自动创建其他topic的。
+ */
 public class MixAll {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 

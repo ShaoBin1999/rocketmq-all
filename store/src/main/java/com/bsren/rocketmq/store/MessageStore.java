@@ -16,7 +16,6 @@
  */
 package com.bsren.rocketmq.store;
 
-import com.bsren.rocketmq.common.filter.MessageFilter;
 import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.message.MessageExtBatch;
 

@@ -17,8 +17,8 @@
 
 package com.bsren.rocketmq.common.protocol.topic;
 
-import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 public class OffsetMovedEvent extends RemotingSerializable {
     private String consumerGroup;

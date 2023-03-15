@@ -45,8 +45,7 @@ public class TopicConfigManager extends ConfigManager {
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
     private transient final Lock lockTopicConfigTable = new ReentrantLock();
 
-    private final ConcurrentMap<String, TopicConfig> topicConfigTable =
-            new ConcurrentHashMap<>(1024);
+    private final ConcurrentMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<>(1024);
     private final DataVersion dataVersion = new DataVersion();
     private final Set<String> systemTopicList = new HashSet<>();
     private transient BrokerController brokerController;
@@ -90,7 +89,6 @@ public class TopicConfigManager extends ConfigManager {
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
         {
-
             String topic = this.brokerController.getBrokerConfig().getBrokerClusterName();
             TopicConfig topicConfig = new TopicConfig(topic);
             this.systemTopicList.add(topic);
@@ -102,7 +100,6 @@ public class TopicConfigManager extends ConfigManager {
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
         {
-
             String topic = this.brokerController.getBrokerConfig().getBrokerName();
             TopicConfig topicConfig = new TopicConfig(topic);
             this.systemTopicList.add(topic);
@@ -142,8 +139,20 @@ public class TopicConfigManager extends ConfigManager {
         return this.topicConfigTable.get(topic);
     }
 
-    public TopicConfig createTopicInSendMessageMethod(final String topic, final String defaultTopic,
-        final String remoteAddress, final int clientDefaultTopicQueueNums, final int topicSysFlag) {
+    /**
+     * 创建topic,brokerController调用registerBrokerAll方法将新建主题通知nameserver
+     * @param topic  待创建的主题名
+     * @param defaultTopic   默认主题，将要创建的主题配置以默认主题为蓝本，默认主题是broker的内建主题，主题名为TBW102
+     * @param remoteAddress  生产者地址，打印日志使用
+     * @param clientDefaultTopicQueueNums  默认的队列数
+     */
+    public TopicConfig createTopicInSendMessageMethod(
+            final String topic,
+            final String defaultTopic,
+            final String remoteAddress,
+            final int clientDefaultTopicQueueNums,
+            final int topicSysFlag
+    ) {
         TopicConfig topicConfig = null;
         boolean createNew = false;
 
@@ -164,15 +173,10 @@ public class TopicConfigManager extends ConfigManager {
 
                         if (PermName.isInherited(defaultTopicConfig.getPerm())) {
                             topicConfig = new TopicConfig(topic);
-
-                            int queueNums =
-                                clientDefaultTopicQueueNums > defaultTopicConfig.getWriteQueueNums() ? defaultTopicConfig
-                                    .getWriteQueueNums() : clientDefaultTopicQueueNums;
-
+                            int queueNums = Math.min(clientDefaultTopicQueueNums, defaultTopicConfig.getWriteQueueNums());
                             if (queueNums < 0) {
                                 queueNums = 0;
                             }
-
                             topicConfig.setReadQueueNums(queueNums);
                             topicConfig.setWriteQueueNums(queueNums);
                             int perm = defaultTopicConfig.getPerm();
@@ -191,14 +195,11 @@ public class TopicConfigManager extends ConfigManager {
 
                     if (topicConfig != null) {
                         log.info("Create new topic by default topic:[{}] config:[{}] producer:[{}]",
-                            defaultTopic, topicConfig, remoteAddress);
+                                defaultTopic, topicConfig, remoteAddress);
 
                         this.topicConfigTable.put(topic, topicConfig);
-
                         this.dataVersion.nextVersion();
-
                         createNew = true;
-
                         this.persist();
                     }
                 } finally {
@@ -411,9 +412,7 @@ public class TopicConfigManager extends ConfigManager {
     }
 
     private void printLoadDataWhenFirstBoot(final TopicConfigSerializeWrapper tcs) {
-        Iterator<Entry<String, TopicConfig>> it = tcs.getTopicConfigTable().entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, TopicConfig> next = it.next();
+        for (Entry<String, TopicConfig> next : tcs.getTopicConfigTable().entrySet()) {
             log.info("load exist local topic, {}", next.getValue().toString());
         }
     }

@@ -17,39 +17,28 @@
 package com.bsren.rocketmq.broker.processor;
 
 import com.bsren.rocketmq.broker.BrokerController;
+import com.bsren.rocketmq.broker.mqtrace.ConsumeMessageContext;
 import com.bsren.rocketmq.broker.mqtrace.ConsumeMessageHook;
 import com.bsren.rocketmq.broker.mqtrace.SendMessageContext;
-import com.bsren.rocketmq.common.UtilAll;
+import com.bsren.rocketmq.common.*;
+import com.bsren.rocketmq.common.constant.PermName;
+import com.bsren.rocketmq.common.message.*;
+import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
 import com.bsren.rocketmq.common.protocol.header.ConsumerSendMsgBackRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.SendMessageRequestHeader;
 import com.bsren.rocketmq.common.protocol.header.SendMessageResponseHeader;
 import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
+import com.bsren.rocketmq.common.sysflag.MessageSysFlag;
+import com.bsren.rocketmq.common.sysflag.TopicSysFlag;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.store.MessageExtBrokerInner;
+import com.bsren.rocketmq.store.PutMessageResult;
+import com.bsren.rocketmq.store.config.StorePathConfigHelper;
+import com.bsren.rocketmq.store.stats.BrokerStatsManager;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.rocketmq.broker.BrokerController;
-import org.apache.rocketmq.broker.mqtrace.ConsumeMessageContext;
-import org.apache.rocketmq.broker.mqtrace.ConsumeMessageHook;
-import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
-import org.apache.rocketmq.common.*;
-import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.help.FAQUrl;
-import org.apache.rocketmq.common.message.*;
-import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.header.ConsumerSendMsgBackRequestHeader;
-import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
-import org.apache.rocketmq.common.protocol.header.SendMessageResponseHeader;
-import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
-import org.apache.rocketmq.common.sysflag.MessageSysFlag;
-import org.apache.rocketmq.common.sysflag.TopicSysFlag;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
-import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-import org.apache.rocketmq.store.MessageExtBrokerInner;
-import org.apache.rocketmq.store.PutMessageResult;
-import org.apache.rocketmq.store.config.StorePathConfigHelper;
-import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 import java.net.SocketAddress;
 import java.util.List;
@@ -250,8 +239,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     }
 
     private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
-        RemotingCommand request,
-        MessageExt msg, TopicConfig topicConfig) {
+                                      RemotingCommand request,
+                                      MessageExt msg, TopicConfig topicConfig) {
         String newTopic = requestHeader.getTopic();
         if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
             String groupName = newTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
@@ -394,7 +383,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 break;
 
             // Failed
-            case CREATE_MAPEDFILE_FAILED:
+            case CREATE_MAPPEDFILE_FAILED:
                 response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("create mapped file failed, server is busy or broken.");
                 break;

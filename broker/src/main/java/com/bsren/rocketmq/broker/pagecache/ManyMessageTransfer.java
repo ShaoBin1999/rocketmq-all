@@ -16,9 +16,9 @@
  */
 package com.bsren.rocketmq.broker.pagecache;
 
+import com.bsren.rocketmq.store.GetMessageResult;
 import io.netty.channel.FileRegion;
 import io.netty.util.AbstractReferenceCounted;
-import org.apache.rocketmq.store.GetMessageResult;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -53,6 +53,7 @@ public class ManyMessageTransfer extends AbstractReferenceCounted implements Fil
     public long transfered() {
         return transferred;
     }
+
 
     @Override
     public long count() {

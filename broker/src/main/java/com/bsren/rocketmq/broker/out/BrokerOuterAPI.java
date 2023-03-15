@@ -41,6 +41,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * fetchNameServerAddr
+ * registerBroker
+ * unregisterBroker
+ * updateNameServerAddressList
+ * getAllDelayOffset
+ * getAllConsumerOffset
+ * getAllSubscriptionGroupConfig
+ * getAllTopicConfig
+ */
 public class BrokerOuterAPI {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final RemotingClient remotingClient;
@@ -81,8 +91,12 @@ public class BrokerOuterAPI {
         return nameSrvAddr;
     }
 
+    /**
+     * 更新nameServerAddress
+     * @param addrs address1;address2
+     */
     public void updateNameServerAddressList(final String addrs) {
-        List<String> lst = new ArrayList<String>();
+        List<String> lst = new ArrayList<>();
         String[] addrArray = addrs.split(";");
         Collections.addAll(lst, addrArray);
 
@@ -98,9 +112,9 @@ public class BrokerOuterAPI {
         final TopicConfigSerializeWrapper topicConfigWrapper,
         final List<String> filterServerList,
         final boolean oneway,
-        final int timeoutMills) {
+        final int timeoutMills)
+    {
         RegisterBrokerResult registerBrokerResult = null;
-
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
         if (nameServerAddressList != null) {
             for (String namesrvAddr : nameServerAddressList) {
@@ -110,7 +124,6 @@ public class BrokerOuterAPI {
                     if (result != null) {
                         registerBrokerResult = result;
                     }
-
                     log.info("register broker to name server {} OK", namesrvAddr);
                 } catch (Exception e) {
                     log.warn("registerBroker Exception, {}", namesrvAddr, e);
@@ -121,6 +134,15 @@ public class BrokerOuterAPI {
         return registerBrokerResult;
     }
 
+    /**
+     * 返回result
+     * result.setMasterAddr(responseHeader.getMasterAddr());
+     * result.setHaServerAddr(responseHeader.getHaServerAddr());
+     * if (response.getBody() != null) {
+     *     result.setKvTable(KVTable.decode(response.getBody(), KVTable.class));
+     * }
+     * kvTable存的是topic信息
+     */
     private RegisterBrokerResult registerBroker(
         final String namesrvAddr,
         final String clusterName,
@@ -132,8 +154,9 @@ public class BrokerOuterAPI {
         final List<String> filterServerList,
         final boolean oneway,
         final int timeoutMills
-    ) throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
-        InterruptedException {
+    ) throws RemotingCommandException, MQBrokerException, RemotingConnectException,
+            RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+
         RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
         requestHeader.setBrokerAddr(brokerAddr);
         requestHeader.setBrokerId(brokerId);

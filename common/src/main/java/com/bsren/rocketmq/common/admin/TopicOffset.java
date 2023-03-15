@@ -14,12 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.broker.mqtrace;
+package com.bsren.rocketmq.common.admin;
 
-public interface SendMessageHook {
-    String hookName();
+public class TopicOffset {
+    private long minOffset;
+    private long maxOffset;
+    private long lastUpdateTimestamp;
 
-    void sendMessageBefore(final SendMessageContext context);
+    public long getMinOffset() {
+        return minOffset;
+    }
 
-    void sendMessageAfter(final SendMessageContext context);
+    public void setMinOffset(long minOffset) {
+        this.minOffset = minOffset;
+    }
+
+    public long getMaxOffset() {
+        return maxOffset;
+    }
+
+    public void setMaxOffset(long maxOffset) {
+        this.maxOffset = maxOffset;
+    }
+
+    public long getLastUpdateTimestamp() {
+        return lastUpdateTimestamp;
+    }
+
+    public void setLastUpdateTimestamp(long lastUpdateTimestamp) {
+        this.lastUpdateTimestamp = lastUpdateTimestamp;
+    }
 }
