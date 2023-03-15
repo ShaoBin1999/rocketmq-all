@@ -14,14 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.client.consumer;
 
-/**
- * Async message pulling interface
- */
-public interface PullCallback {
+package com.bsren.rocketmq.filtersrv.filter;
 
-    void onSuccess(final PullResult pullResult);
-
-    void onException(final Throwable e);
+public class FilterClassLoader extends ClassLoader {
+    public final Class<?> createNewClass(String name, byte[] b, int off, int len) throws ClassFormatError {
+        return this.defineClass(name, b, off, len);
+    }
 }

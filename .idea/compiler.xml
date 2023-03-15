@@ -8,6 +8,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="filter" />
         <module name="common" />
+        <module name="filtersrv" />
         <module name="logging" />
         <module name="client" />
         <module name="store" />

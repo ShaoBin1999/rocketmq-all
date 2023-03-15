@@ -16,6 +16,7 @@
         <module>broker</module>
         <module>store</module>
         <module>filter</module>
+        <module>filtersrv</module>
     </modules>
 
     <properties>

@@ -23,9 +23,6 @@ package com.bsren.rocketmq.common.protocol.header;
 import com.bsren.rocketmq.remoting.CommandCustomHeader;
 import com.bsren.rocketmq.remoting.annotation.CFNotNull;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
-import org.apache.rocketmq.remoting.CommandCustomHeader;
-import org.apache.rocketmq.remoting.annotation.CFNotNull;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
 public class PullMessageResponseHeader implements CommandCustomHeader {
     @CFNotNull

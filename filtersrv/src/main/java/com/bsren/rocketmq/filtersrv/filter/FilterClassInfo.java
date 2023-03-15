@@ -15,39 +15,36 @@
  * limitations under the License.
  */
 
-package com.bsren.rocketmq.common.protocol.header.filtersrv;
+package com.bsren.rocketmq.filtersrv.filter;
 
-import com.bsren.rocketmq.remoting.CommandCustomHeader;
-import com.bsren.rocketmq.remoting.annotation.CFNotNull;
-import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.common.filter.MessageFilter;
 
-/**
- * brokerName
- * brokerId
- */
-public class RegisterFilterServerResponseHeader implements CommandCustomHeader {
-    @CFNotNull
-    private String brokerName;
-    @CFNotNull
-    private long brokerId;
+public class FilterClassInfo {
+    private String className;
+    private int classCRC;
+    private MessageFilter messageFilter;
 
-    @Override
-    public void checkFields() throws RemotingCommandException {
+    public int getClassCRC() {
+        return classCRC;
     }
 
-    public long getBrokerId() {
-        return brokerId;
+    public void setClassCRC(int classCRC) {
+        this.classCRC = classCRC;
     }
 
-    public void setBrokerId(long brokerId) {
-        this.brokerId = brokerId;
+    public MessageFilter getMessageFilter() {
+        return messageFilter;
     }
 
-    public String getBrokerName() {
-        return brokerName;
+    public void setMessageFilter(MessageFilter messageFilter) {
+        this.messageFilter = messageFilter;
     }
 
-    public void setBrokerName(String brokerName) {
-        this.brokerName = brokerName;
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
     }
 }

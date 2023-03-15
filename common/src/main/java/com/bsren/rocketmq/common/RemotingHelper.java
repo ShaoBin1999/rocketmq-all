@@ -9,8 +9,8 @@ import java.net.SocketAddress;
 
 
 public class RemotingHelper {
-
     public static final String ROCKETMQ_REMOTING = "RocketmqRemoting";
+    public static final String DEFAULT_CHARSET = "UTF-8";
 
     private static final AttributeKey<String> REMOTE_ADDR_KEY = AttributeKey.valueOf("RemoteAddr");
 
