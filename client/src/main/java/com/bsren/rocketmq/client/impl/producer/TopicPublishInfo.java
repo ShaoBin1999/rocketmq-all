@@ -27,7 +27,7 @@ import java.util.List;
 public class TopicPublishInfo {
     private boolean orderTopic = false;   //是否支持排序
     private boolean haveTopicRouterInfo = false;  //是否含有路由信息
-    private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
+    private List<MessageQueue> messageQueueList = new ArrayList<>();
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();  //按照取余分配到哪个queue
     private TopicRouteData topicRouteData;
 

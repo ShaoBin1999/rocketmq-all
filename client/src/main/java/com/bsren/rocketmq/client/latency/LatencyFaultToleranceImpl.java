@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 记录broker的延迟时间
  */
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
-    private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
+    private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<>(16);
 
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
@@ -69,7 +69,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
     @Override
     public String pickOneAtLeast() {
         final Enumeration<FaultItem> elements = this.faultItemTable.elements();
-        List<FaultItem> tmpList = new LinkedList<FaultItem>();
+        List<FaultItem> tmpList = new LinkedList<>();
         while (elements.hasMoreElements()) {
             final FaultItem faultItem = elements.nextElement();
             tmpList.add(faultItem);
@@ -99,7 +99,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     /**
      * 延迟小的在前面
-     * 开始时间小的在前面
+     * 延迟相同的情况下开始时间小的在前面
      * isAvailable方法：当前时间大于开始时间
      */
     class FaultItem implements Comparable<FaultItem> {

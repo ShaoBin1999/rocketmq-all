@@ -16,7 +16,6 @@
  */
 package com.bsren.rocketmq.client.producer.selector;
 
-import com.bsren.rocketmq.client.producer.MessageQueueSelector;
 import com.bsren.rocketmq.common.message.Message;
 import com.bsren.rocketmq.common.message.MessageQueue;
 

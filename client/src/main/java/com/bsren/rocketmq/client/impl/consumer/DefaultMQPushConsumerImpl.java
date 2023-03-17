@@ -16,73 +16,50 @@
  */
 package com.bsren.rocketmq.client.impl.consumer;
 
+import com.bsren.rocketmq.client.QueryResult;
+import com.bsren.rocketmq.client.Validators;
 import com.bsren.rocketmq.client.consumer.DefaultMQPushConsumer;
+import com.bsren.rocketmq.client.consumer.MessageSelector;
+import com.bsren.rocketmq.client.consumer.PullCallback;
+import com.bsren.rocketmq.client.consumer.PullResult;
 import com.bsren.rocketmq.client.consumer.listener.MessageListener;
+import com.bsren.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import com.bsren.rocketmq.client.consumer.listener.MessageListenerOrderly;
 import com.bsren.rocketmq.client.consumer.store.LocalFileOffsetStore;
 import com.bsren.rocketmq.client.consumer.store.OffsetStore;
+import com.bsren.rocketmq.client.consumer.store.ReadOffsetType;
 import com.bsren.rocketmq.client.consumer.store.RemoteBrokerOffsetStore;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
+import com.bsren.rocketmq.client.hook.ConsumeMessageContext;
+import com.bsren.rocketmq.client.hook.ConsumeMessageHook;
 import com.bsren.rocketmq.client.hook.FilterMessageHook;
+import com.bsren.rocketmq.client.impl.CommunicationMode;
+import com.bsren.rocketmq.client.impl.MQClientManager;
 import com.bsren.rocketmq.client.impl.factory.MQClientInstance;
 import com.bsren.rocketmq.client.log.ClientLogger;
-import com.bsren.rocketmq.common.ServiceState;
+import com.bsren.rocketmq.client.stat.ConsumerStatsManager;
+import com.bsren.rocketmq.common.*;
+import com.bsren.rocketmq.common.consumer.ConsumeFromWhere;
+import com.bsren.rocketmq.common.filter.FilterAPI;
+import com.bsren.rocketmq.common.message.*;
+import com.bsren.rocketmq.common.protocol.body.ConsumeStatus;
+import com.bsren.rocketmq.common.protocol.body.ConsumerRunningInfo;
+import com.bsren.rocketmq.common.protocol.body.ProcessQueueInfo;
 import com.bsren.rocketmq.common.protocol.body.QueueTimeSpan;
+import com.bsren.rocketmq.common.protocol.heartbeat.ConsumeType;
+import com.bsren.rocketmq.common.protocol.heartbeat.MessageModel;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import com.bsren.rocketmq.common.protocol.route.BrokerData;
 import com.bsren.rocketmq.common.protocol.route.TopicRouteData;
+import com.bsren.rocketmq.common.sysflag.PullSysFlag;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.client.QueryResult;
-import org.apache.rocketmq.client.Validators;
-import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
-import org.apache.rocketmq.client.consumer.MessageSelector;
-import org.apache.rocketmq.client.consumer.PullCallback;
-import org.apache.rocketmq.client.consumer.PullResult;
-import org.apache.rocketmq.client.consumer.listener.MessageListener;
-import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
-import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
-import org.apache.rocketmq.client.consumer.store.LocalFileOffsetStore;
-import org.apache.rocketmq.client.consumer.store.OffsetStore;
-import org.apache.rocketmq.client.consumer.store.ReadOffsetType;
-import org.apache.rocketmq.client.consumer.store.RemoteBrokerOffsetStore;
-import org.apache.rocketmq.client.exception.MQBrokerException;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.client.hook.ConsumeMessageContext;
-import org.apache.rocketmq.client.hook.ConsumeMessageHook;
-import org.apache.rocketmq.client.hook.FilterMessageHook;
-import org.apache.rocketmq.client.impl.CommunicationMode;
-import org.apache.rocketmq.client.impl.MQClientManager;
-import org.apache.rocketmq.client.impl.factory.MQClientInstance;
-import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.client.stat.ConsumerStatsManager;
-import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.ServiceState;
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.common.filter.FilterAPI;
-import org.apache.rocketmq.common.help.FAQUrl;
-import org.apache.rocketmq.common.message.*;
-import org.apache.rocketmq.common.protocol.body.ConsumeStatus;
-import org.apache.rocketmq.common.protocol.body.ConsumerRunningInfo;
-import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
-import org.apache.rocketmq.common.protocol.body.QueueTimeSpan;
-import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
-import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.common.protocol.route.BrokerData;
-import org.apache.rocketmq.common.protocol.route.TopicRouteData;
-import org.apache.rocketmq.common.sysflag.PullSysFlag;
-import org.apache.rocketmq.remoting.RPCHook;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentMap;
-
-import static com.bsren.rocketmq.common.protocol.heartbeat.MessageModel.BROADCASTING;
-import static com.bsren.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
 
 public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     /**
@@ -176,7 +153,6 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         if (null == result) {
             throw new MQClientException("The topic[" + topic + "] not exist", null);
         }
-
         return result;
     }
 
@@ -207,7 +183,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     public void pullMessage(final PullRequest pullRequest) {
         final ProcessQueue processQueue = pullRequest.getProcessQueue();
         if (processQueue.isDropped()) {
-            log.info("the pull request[{}] is dropped.", pullRequest.toString());
+            log.info("the pull request[{}] is dropped.", pullRequest);
             return;
         }
 
@@ -269,10 +245,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     log.info("the first time to pull message, so fix offset from broker. pullRequest: {} NewOffset: {} brokerBusy: {}",
                         pullRequest, offset, brokerBusy);
                     if (brokerBusy) {
-                        log.info("[NOTIFYME]the first time to pull message, but pull request offset larger than broker consume offset. pullRequest: {} NewOffset: {}",
+                        log.info("[NOTIFYME]the first time to pull message, " +
+                                        "but pull request offset larger than broker consume offset. pullRequest: {} NewOffset: {}",
                             pullRequest, offset);
                     }
-
                     pullRequest.setLockedFirst(true);
                     pullRequest.setNextOffset(offset);
                 }
@@ -1059,9 +1035,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         Set<SubscriptionData> subSet = this.subscriptions();
         info.getSubscriptionSet().addAll(subSet);
 
-        Iterator<Entry<MessageQueue, ProcessQueue>> it = this.rebalanceImpl.getProcessQueueTable().entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<MessageQueue, ProcessQueue> next = it.next();
+        for (Entry<MessageQueue, ProcessQueue> next : this.rebalanceImpl.getProcessQueueTable().entrySet()) {
             MessageQueue mq = next.getKey();
             ProcessQueue pq = next.getValue();
 
@@ -1117,9 +1091,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private long computeAccumulationTotal() {
         long msgAccTotal = 0;
         ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = this.rebalanceImpl.getProcessQueueTable();
-        Iterator<Entry<MessageQueue, ProcessQueue>> it = processQueueTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<MessageQueue, ProcessQueue> next = it.next();
+        for (Entry<MessageQueue, ProcessQueue> next : processQueueTable.entrySet()) {
             ProcessQueue value = next.getValue();
             msgAccTotal += value.getMsgAccCnt();
         }

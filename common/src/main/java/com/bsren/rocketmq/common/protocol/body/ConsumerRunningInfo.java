@@ -17,10 +17,10 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.protocol.heartbeat.ConsumeType;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 import java.util.Iterator;
 import java.util.Map.Entry;

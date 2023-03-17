@@ -14,27 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.client.impl.producer;
+package com.bsren.rocketmq.client.impl.consumer;
 
-import com.bsren.rocketmq.client.producer.transanction.TransactionCheckListener;
 import com.bsren.rocketmq.common.message.MessageExt;
-import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
+import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 
-import java.util.Set;
+import java.util.List;
 
-public interface MQProducerInner {
-    Set<String> getPublishTopicList();
+public interface ConsumeMessageService {
+    void start();
 
-    boolean isPublishTopicNeedUpdate(final String topic);
+    void shutdown();
 
-    TransactionCheckListener checkListener();
+    void updateCorePoolSize(int corePoolSize);
 
-    void checkTransactionState(
-        final String addr,
-        final MessageExt msg,
-        final CheckTransactionStateRequestHeader checkRequestHeader);
+    void incCorePoolSize();
 
-    void updateTopicPublishInfo(final String topic, final TopicPublishInfo info);
+    void decCorePoolSize();
 
-    boolean isUnitMode();
+    int getCorePoolSize();
+
+    ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg, final String brokerName);
+
+    void submitConsumeRequest(
+        final List<MessageExt> msgs,
+        final ProcessQueue processQueue,
+        final MessageQueue messageQueue,
+        final boolean dispatchToConsume);
 }

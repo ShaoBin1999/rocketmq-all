@@ -28,6 +28,8 @@ public class FilterMessageContext {
     private Object arg;
     private boolean unitMode;
 
+
+
     public String getConsumerGroup() {
         return consumerGroup;
     }

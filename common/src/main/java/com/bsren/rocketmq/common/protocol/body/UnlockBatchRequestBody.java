@@ -23,10 +23,28 @@ import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * consumerGroup
+ * clientId
+ * Set<MessageQueue>
+ */
 public class UnlockBatchRequestBody extends RemotingSerializable {
     private String consumerGroup;
     private String clientId;
-    private Set<MessageQueue> mqSet = new HashSet<MessageQueue>();
+    private Set<MessageQueue> mqSet;
+
+    public UnlockBatchRequestBody(String consumerGroup, String clientId,MessageQueue mq) {
+        this.consumerGroup = consumerGroup;
+        this.clientId = clientId;
+        this.mqSet = new HashSet<>();
+        this.mqSet.add(mq);
+    }
+
+    public UnlockBatchRequestBody(String consumerGroup, String clientId, Set<MessageQueue> mqSet) {
+        this.consumerGroup = consumerGroup;
+        this.clientId = clientId;
+        this.mqSet = mqSet;
+    }
 
     public String getConsumerGroup() {
         return consumerGroup;

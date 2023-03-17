@@ -17,7 +17,7 @@
 
 package com.bsren.rocketmq.common.protocol.body;
 
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 
 public class ConsumeMessageDirectlyResult extends RemotingSerializable {
     private boolean order = false;

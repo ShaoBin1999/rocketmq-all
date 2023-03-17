@@ -17,9 +17,9 @@
 
 package com.bsren.rocketmq.common.protocol.header.namesrv;
 
-import org.apache.rocketmq.remoting.CommandCustomHeader;
-import org.apache.rocketmq.remoting.annotation.CFNullable;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.CommandCustomHeader;
+import com.bsren.rocketmq.remoting.annotation.CFNullable;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 
 public class GetKVConfigResponseHeader implements CommandCustomHeader {
     @CFNullable

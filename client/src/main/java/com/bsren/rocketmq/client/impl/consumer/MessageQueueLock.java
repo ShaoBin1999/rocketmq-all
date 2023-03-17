@@ -14,11 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.client.producer;
+package com.bsren.rocketmq.client.impl.consumer;
 
+import com.bsren.rocketmq.common.message.MessageQueue;
 
-import com.bsren.rocketmq.common.message.Message;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-public interface LocalTransactionExecutor {
-    LocalTransactionState executeLocalTransactionBranch(final Message msg, final Object arg);
+/**
+ * Message lock,strictly ensure the single queue only one thread at a time consuming
+ */
+public class MessageQueueLock {
+    private ConcurrentMap<MessageQueue, Object> mqLockTable = new ConcurrentHashMap<>();
+
+    public Object fetchLockObject(final MessageQueue mq) {
+        Object objLock = this.mqLockTable.get(mq);
+        if (null == objLock) {
+            objLock = new Object();
+            Object prevLock = this.mqLockTable.putIfAbsent(mq, objLock);
+            if (prevLock != null) {
+                objLock = prevLock;
+            }
+        }
+
+        return objLock;
+    }
 }

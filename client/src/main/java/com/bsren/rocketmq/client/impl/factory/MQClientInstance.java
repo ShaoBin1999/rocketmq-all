@@ -18,26 +18,29 @@ package com.bsren.rocketmq.client.impl.factory;
 
 import com.bsren.rocketmq.client.ClientConfig;
 import com.bsren.rocketmq.client.consumer.*;
+import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
-import com.bsren.rocketmq.client.impl.ClientRemotingProcessor;
-import com.bsren.rocketmq.client.impl.FindBrokerResult;
-import com.bsren.rocketmq.client.impl.MQAdminImpl;
-import com.bsren.rocketmq.client.impl.MQClientAPIImpl;
-import com.bsren.rocketmq.client.impl.consumer.DefaultMQPullConsumerImpl;
-import com.bsren.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
+import com.bsren.rocketmq.client.impl.*;
+import com.bsren.rocketmq.client.impl.consumer.*;
+import com.bsren.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import com.bsren.rocketmq.client.impl.producer.MQProducerInner;
 import com.bsren.rocketmq.client.impl.producer.TopicPublishInfo;
 import com.bsren.rocketmq.client.log.ClientLogger;
 import com.bsren.rocketmq.client.producer.DefaultMQProducer;
-import com.bsren.rocketmq.common.MQVersion;
-import com.bsren.rocketmq.common.MixAll;
-import com.bsren.rocketmq.common.ServiceState;
+import com.bsren.rocketmq.client.stat.ConsumerStatsManager;
+import com.bsren.rocketmq.common.*;
 import com.bsren.rocketmq.common.constant.PermName;
+import com.bsren.rocketmq.common.filter.ExpressionType;
+import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.message.MessageQueue;
-import com.bsren.rocketmq.common.protocol.heartbeat.ConsumerData;
+import com.bsren.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
+import com.bsren.rocketmq.common.protocol.body.ConsumerRunningInfo;
+import com.bsren.rocketmq.common.protocol.heartbeat.*;
 import com.bsren.rocketmq.common.protocol.route.BrokerData;
 import com.bsren.rocketmq.common.protocol.route.QueueData;
 import com.bsren.rocketmq.common.protocol.route.TopicRouteData;
+import com.bsren.rocketmq.remoting.RPCHook;
+import com.bsren.rocketmq.remoting.exception.RemotingException;
 import com.bsren.rocketmq.remoting.netty.NettyClientConfig;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import org.slf4j.Logger;
@@ -59,24 +62,22 @@ public class MQClientInstance<MQAdminExtInner> {
     private final String clientId;
     private final long bootTimestamp = System.currentTimeMillis();
     private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
-    private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<String, MQConsumerInner>();
+    private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<>();
     private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<String, MQAdminExtInner>();
     private final NettyClientConfig nettyClientConfig;
     private final MQClientAPIImpl mQClientAPIImpl;
     private final MQAdminImpl mQAdminImpl;
-    private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<String, TopicRouteData>();
+    private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<>();
     private final Lock lockNamesrv = new ReentrantLock();
     private final Lock lockHeartbeat = new ReentrantLock();
+    //brokerName下可能有多个节点，主从
     private final ConcurrentMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable =
         new ConcurrentHashMap<String, HashMap<Long, String>>();
+    //brokerName下的版本，可能有多个
     private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable =
         new ConcurrentHashMap<String, HashMap<String, Integer>>();
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            return new Thread(r, "MQClientFactoryScheduledThread");
-        }
-    });
+    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+            r -> new Thread(r, "MQClientFactoryScheduledThread"));
     private final ClientRemotingProcessor clientRemotingProcessor;
     private final PullMessageService pullMessageService;
     private final RebalanceService rebalanceService;
@@ -85,7 +86,7 @@ public class MQClientInstance<MQAdminExtInner> {
     private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
     private ServiceState serviceState = ServiceState.CREATE_JUST;
     private DatagramSocket datagramSocket;
-    private Random random = new Random();
+    private final Random random = new Random();
 
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
         this(clientConfig, instanceIndex, clientId, null);
@@ -287,15 +288,11 @@ public class MQClientInstance<MQAdminExtInner> {
             }
         }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
-        this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    MQClientInstance.this.adjustThreadPool();
-                } catch (Exception e) {
-                    log.error("ScheduledTask adjustThreadPool exception", e);
-                }
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                MQClientInstance.this.adjustThreadPool();
+            } catch (Exception e) {
+                log.error("ScheduledTask adjustThreadPool exception", e);
             }
         }, 1, 1, TimeUnit.MINUTES);
     }
@@ -309,9 +306,7 @@ public class MQClientInstance<MQAdminExtInner> {
 
         // Consumer
         {
-            Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
-            while (it.hasNext()) {
-                Entry<String, MQConsumerInner> entry = it.next();
+            for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
                 MQConsumerInner impl = entry.getValue();
                 if (impl != null) {
                     Set<SubscriptionData> subList = impl.subscriptions();
@@ -390,10 +385,8 @@ public class MQClientInstance<MQAdminExtInner> {
     }
 
     public void checkClientInBroker() throws MQClientException {
-        Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
 
-        while (it.hasNext()) {
-            Entry<String, MQConsumerInner> entry = it.next();
+        for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             Set<SubscriptionData> subscriptionInner = entry.getValue().subscriptions();
             if (subscriptionInner == null || subscriptionInner.isEmpty()) {
                 return;
@@ -410,16 +403,16 @@ public class MQClientInstance<MQAdminExtInner> {
                 if (addr != null) {
                     try {
                         this.getMQClientAPIImpl().checkClientInBroker(
-                            addr, entry.getKey(), this.clientId, subscriptionData, 3 * 1000
+                                addr, entry.getKey(), this.clientId, subscriptionData, 3 * 1000
                         );
                     } catch (Exception e) {
                         if (e instanceof MQClientException) {
                             throw (MQClientException) e;
                         } else {
                             throw new MQClientException("Check client in broker error, maybe because you use "
-                                + subscriptionData.getExpressionType() + " to filter message, but server has not been upgraded to support!"
-                                + "This error would not affect the launch of consumer, but may has impact on message receiving if you " +
-                                "have use the new features which are not supported by server, please check the log!", e);
+                                    + subscriptionData.getExpressionType() + " to filter message, but server has not been upgraded to support!"
+                                    + "This error would not affect the launch of consumer, but may has impact on message receiving if you " +
+                                    "have use the new features which are not supported by server, please check the log!", e);
                         }
                     }
                 }
@@ -443,18 +436,14 @@ public class MQClientInstance<MQAdminExtInner> {
     }
 
     private void persistAllConsumerOffset() {
-        Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, MQConsumerInner> entry = it.next();
+        for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             impl.persistConsumerOffset();
         }
     }
 
     public void adjustThreadPool() {
-        Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, MQConsumerInner> entry = it.next();
+        for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
                 try {
@@ -473,9 +462,7 @@ public class MQClientInstance<MQAdminExtInner> {
     }
 
     private boolean isBrokerAddrExistInTopicRouteTable(final String addr) {
-        Iterator<Entry<String, TopicRouteData>> it = this.topicRouteTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, TopicRouteData> entry = it.next();
+        for (Entry<String, TopicRouteData> entry : this.topicRouteTable.entrySet()) {
             TopicRouteData topicRouteData = entry.getValue();
             List<BrokerData> bds = topicRouteData.getBrokerDatas();
             for (BrokerData bd : bds) {
@@ -501,9 +488,7 @@ public class MQClientInstance<MQAdminExtInner> {
 
         if (!this.brokerAddrTable.isEmpty()) {
             long times = this.sendHeartbeatTimesTotal.getAndIncrement();
-            Iterator<Entry<String, HashMap<Long, String>>> it = this.brokerAddrTable.entrySet().iterator();
-            while (it.hasNext()) {
-                Entry<String, HashMap<Long, String>> entry = it.next();
+            for (Entry<String, HashMap<Long, String>> entry : this.brokerAddrTable.entrySet()) {
                 String brokerName = entry.getKey();
                 HashMap<Long, String> oneTable = entry.getValue();
                 if (oneTable != null) {
@@ -531,7 +516,7 @@ public class MQClientInstance<MQAdminExtInner> {
                                     log.info("send heart beat to broker[{} {} {}] failed", brokerName, id, addr);
                                 } else {
                                     log.info("send heart beat to broker[{} {} {}] exception, because the broker not up, forget it", brokerName,
-                                        id, addr);
+                                            id, addr);
                                 }
                             }
                         }
@@ -542,9 +527,7 @@ public class MQClientInstance<MQAdminExtInner> {
     }
 
     private void uploadFilterClassSource() {
-        Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, MQConsumerInner> next = it.next();
+        for (Entry<String, MQConsumerInner> next : this.consumerTable.entrySet()) {
             MQConsumerInner consumer = next.getValue();
             if (ConsumeType.CONSUME_PASSIVELY == consumer.consumeType()) {
                 Set<SubscriptionData> subscriptions = consumer.subscriptions();
@@ -617,9 +600,7 @@ public class MQClientInstance<MQAdminExtInner> {
                             // Update sub info
                             {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
-                                Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
-                                while (it.hasNext()) {
-                                    Entry<String, MQConsumerInner> entry = it.next();
+                                for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
                                     MQConsumerInner impl = entry.getValue();
                                     if (impl != null) {
                                         impl.updateTopicSubscribeInfo(topic, subscribeInfo);
@@ -687,9 +668,7 @@ public class MQClientInstance<MQAdminExtInner> {
     }
 
     private boolean isBrokerInNameServer(final String brokerAddr) {
-        Iterator<Entry<String, TopicRouteData>> it = this.topicRouteTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, TopicRouteData> itNext = it.next();
+        for (Entry<String, TopicRouteData> itNext : this.topicRouteTable.entrySet()) {
             List<BrokerData> brokerDatas = itNext.getValue().getBrokerDatas();
             for (BrokerData bd : brokerDatas) {
                 boolean contain = bd.getBrokerAddrs().containsValue(brokerAddr);
@@ -766,7 +745,6 @@ public class MQClientInstance<MQAdminExtInner> {
                 }
             }
         }
-
         {
             Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
             while (it.hasNext() && !result) {
@@ -987,11 +965,14 @@ public class MQClientInstance<MQAdminExtInner> {
         return null;
     }
 
+    /**
+     * 找到brokerName下对应brokerId的broker
+     * 如果没找到且onlyThisBroker为false，则返回第一个broker
+     */
     public FindBrokerResult findBrokerAddressInSubscribe(
         final String brokerName,
         final long brokerId,
-        final boolean onlyThisBroker
-    ) {
+        final boolean onlyThisBroker) {
         String brokerAddr = null;
         boolean slave = false;
         boolean found = false;
@@ -1032,7 +1013,6 @@ public class MQClientInstance<MQAdminExtInner> {
             this.updateTopicRouteInfoFromNameServer(topic);
             brokerAddr = this.findBrokerAddrByTopic(topic);
         }
-
         if (null != brokerAddr) {
             try {
                 return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000);
@@ -1054,7 +1034,6 @@ public class MQClientInstance<MQAdminExtInner> {
                 return bd.selectBrokerAddr();
             }
         }
-
         return null;
     }
 
@@ -1152,14 +1131,13 @@ public class MQClientInstance<MQAdminExtInner> {
     }
 
     public ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg,
-        final String consumerGroup,
-        final String brokerName) {
+                                                               final String consumerGroup,
+                                                               final String brokerName) {
         MQConsumerInner mqConsumerInner = this.consumerTable.get(consumerGroup);
         if (null != mqConsumerInner) {
             DefaultMQPushConsumerImpl consumer = (DefaultMQPushConsumerImpl) mqConsumerInner;
 
-            ConsumeMessageDirectlyResult result = consumer.getConsumeMessageService().consumeMessageDirectly(msg, brokerName);
-            return result;
+            return consumer.getConsumeMessageService().consumeMessageDirectly(msg, brokerName);
         }
 
         return null;

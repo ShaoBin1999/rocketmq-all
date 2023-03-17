@@ -17,7 +17,7 @@
 
 package com.bsren.rocketmq.client.hook;
 
-import org.apache.rocketmq.client.exception.MQClientException;
+import com.bsren.rocketmq.client.exception.MQClientException;
 
 public interface CheckForbiddenHook {
     String hookName();

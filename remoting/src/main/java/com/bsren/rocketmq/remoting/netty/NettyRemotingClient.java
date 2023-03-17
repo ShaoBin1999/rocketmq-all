@@ -332,6 +332,12 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * @param addr 从这里获取channel
+     * @param request 请求
+     * @param timeoutMillis 超时时间
+     * 这里添加了钩子方法
+     */
     @Override
     public RemotingCommand invokeSync(String addr, final RemotingCommand request, long timeoutMillis)
         throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {

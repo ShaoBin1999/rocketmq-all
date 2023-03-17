@@ -69,10 +69,7 @@ public class AllocateMessageQueueConsistentHash implements AllocateMessageQueueS
 
         List<MessageQueue> result = new ArrayList<MessageQueue>();
         if (!cidAll.contains(currentCID)) {
-            log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
-                consumerGroup,
-                currentCID,
-                cidAll);
+            log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}", consumerGroup, currentCID, cidAll);
             return result;
         }
 
@@ -80,7 +77,6 @@ public class AllocateMessageQueueConsistentHash implements AllocateMessageQueueS
         for (String cid : cidAll) {
             cidNodes.add(new ClientNode(cid));
         }
-
         final ConsistentHashRouter<ClientNode> router; //for building hash ring
         if (customHashFunction != null) {
             router = new ConsistentHashRouter<>(cidNodes, virtualNodeCnt, customHashFunction);

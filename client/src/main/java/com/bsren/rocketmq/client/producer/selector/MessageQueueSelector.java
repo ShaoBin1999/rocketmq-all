@@ -1,4 +1,4 @@
-package com.bsren.rocketmq.client.producer;
+package com.bsren.rocketmq.client.producer.selector;
 
 import com.bsren.rocketmq.common.message.Message;
 import com.bsren.rocketmq.common.message.MessageQueue;

@@ -193,6 +193,11 @@ public class ReBalanceLockManager {
         return lockedMqs;
     }
 
+    /**
+     * @param group 消费组
+     * @param mqs 要解锁的MessageQueue
+     * @param clientId 加锁的客户端
+     */
     public void unlockBatch(final String group, final Set<MessageQueue> mqs, final String clientId) {
         try {
             this.lock.lockInterruptibly();
@@ -204,28 +209,17 @@ public class ReBalanceLockManager {
                         if (null != lockEntry) {
                             if (lockEntry.getClientId().equals(clientId)) {
                                 groupValue.remove(mq);
-                                log.info("unlockBatch, Group: {} {} {}",
-                                    group,
-                                    mq,
-                                    clientId);
+                                log.info("unlockBatch, Group: {} {} {}", group, mq, clientId);
                             } else {
                                 log.warn("unlockBatch, but mq locked by other client: {}, Group: {} {} {}",
-                                    lockEntry.getClientId(),
-                                    group,
-                                    mq,
-                                    clientId);
+                                    lockEntry.getClientId(), group, mq, clientId);
                             }
                         } else {
-                            log.warn("unlockBatch, but mq not locked, Group: {} {} {}",
-                                group,
-                                mq,
-                                clientId);
+                            log.warn("unlockBatch, but mq not locked, Group: {} {} {}", group, mq, clientId);
                         }
                     }
                 } else {
-                    log.warn("unlockBatch, group not exist, Group: {} {}",
-                        group,
-                        clientId);
+                    log.warn("unlockBatch, group not exist, Group: {} {}", group, clientId);
                 }
             } finally {
                 this.lock.unlock();

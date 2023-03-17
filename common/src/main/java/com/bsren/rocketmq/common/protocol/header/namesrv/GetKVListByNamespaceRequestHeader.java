@@ -17,9 +17,9 @@
 
 package com.bsren.rocketmq.common.protocol.header.namesrv;
 
-import org.apache.rocketmq.remoting.CommandCustomHeader;
-import org.apache.rocketmq.remoting.annotation.CFNotNull;
-import org.apache.rocketmq.remoting.exception.RemotingCommandException;
+import com.bsren.rocketmq.remoting.CommandCustomHeader;
+import com.bsren.rocketmq.remoting.annotation.CFNotNull;
+import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 
 public class GetKVListByNamespaceRequestHeader implements CommandCustomHeader {
     @CFNotNull

@@ -19,6 +19,9 @@ package com.bsren.rocketmq.client.common;
 
 import java.util.Random;
 
+/**
+ * 维护了threadLocal变量，为其中的值执行++操作，但是很奇怪并没有从0开始
+ */
 public class ThreadLocalIndex {
     private final ThreadLocal<Integer> threadLocalIndex = new ThreadLocal<>();
     private final Random random = new Random();

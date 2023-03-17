@@ -101,10 +101,8 @@ public class MessageClientIDSetter {
     }
 
     public static String createUniqID() {
-        StringBuilder sb = new StringBuilder(LEN * 2);
-        sb.append(FIX_STRING);
-        sb.append(UtilAll.bytes2string(createUniqIDBuffer()));
-        return sb.toString();
+        return FIX_STRING +
+                UtilAll.bytes2string(createUniqIDBuffer());
     }
 
     private static byte[] createUniqIDBuffer() {

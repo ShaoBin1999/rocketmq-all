@@ -19,9 +19,11 @@ package com.bsren.rocketmq.client.impl;
 import com.bsren.rocketmq.client.ClientConfig;
 import com.bsren.rocketmq.client.consumer.PullCallback;
 import com.bsren.rocketmq.client.consumer.PullResult;
+import com.bsren.rocketmq.client.consumer.PullStatus;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
 import com.bsren.rocketmq.client.hook.SendMessageContext;
+import com.bsren.rocketmq.client.impl.consumer.PullResultExt;
 import com.bsren.rocketmq.client.impl.factory.MQClientInstance;
 import com.bsren.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import com.bsren.rocketmq.client.impl.producer.TopicPublishInfo;
@@ -32,43 +34,31 @@ import com.bsren.rocketmq.client.producer.SendStatus;
 import com.bsren.rocketmq.common.MQVersion;
 import com.bsren.rocketmq.common.MixAll;
 import com.bsren.rocketmq.common.TopicConfig;
-import com.bsren.rocketmq.common.message.Message;
-import com.bsren.rocketmq.common.message.MessageConst;
-import com.bsren.rocketmq.common.message.MessageExt;
-import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.UtilAll;
+import com.bsren.rocketmq.common.admin.ConsumeStats;
+import com.bsren.rocketmq.common.admin.TopicStatsTable;
+import com.bsren.rocketmq.common.message.*;
 import com.bsren.rocketmq.common.namesrv.TopAddressing;
 import com.bsren.rocketmq.common.protocol.RequestCode;
 import com.bsren.rocketmq.common.protocol.body.*;
 import com.bsren.rocketmq.common.protocol.header.*;
-import com.bsren.rocketmq.common.protocol.header.namesrv.GetRouteInfoRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.filtersrv.RegisterMessageFilterClassRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.namesrv.*;
 import com.bsren.rocketmq.common.protocol.heartbeat.HeartbeatData;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import com.bsren.rocketmq.common.protocol.route.TopicRouteData;
+import com.bsren.rocketmq.common.subscription.SubscriptionGroupConfig;
 import com.bsren.rocketmq.remoting.InvokeCallback;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.RemotingClient;
 import com.bsren.rocketmq.remoting.exception.*;
 import com.bsren.rocketmq.remoting.netty.NettyClientConfig;
 import com.bsren.rocketmq.remoting.netty.NettyRemotingClient;
+import com.bsren.rocketmq.remoting.netty.ResponseFuture;
 import com.bsren.rocketmq.remoting.protocol.LanguageCode;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 import com.bsren.rocketmq.remoting.protocol.ResponseCode;
-import org.apache.rocketmq.client.consumer.PullStatus;
-import org.apache.rocketmq.client.impl.consumer.PullResultExt;
-import org.apache.rocketmq.common.TopicConfig;
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.admin.ConsumeStats;
-import org.apache.rocketmq.common.admin.TopicStatsTable;
-import org.apache.rocketmq.common.message.*;
-import org.apache.rocketmq.common.protocol.body.*;
-import org.apache.rocketmq.common.protocol.header.*;
-import org.apache.rocketmq.common.protocol.header.filtersrv.RegisterMessageFilterClassRequestHeader;
-import org.apache.rocketmq.common.protocol.header.namesrv.*;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.common.protocol.route.TopicRouteData;
-import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
-import org.apache.rocketmq.remoting.exception.*;
-import org.apache.rocketmq.remoting.netty.ResponseFuture;
-import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.slf4j.Logger;
 
 import java.io.UnsupportedEncodingException;
@@ -513,7 +503,6 @@ public class MQClientAPIImpl {
                 if (response != null) {
                     try {
                         PullResult pullResult = MQClientAPIImpl.this.processPullResponse(response);
-                        assert pullResult != null;
                         pullCallback.onSuccess(pullResult);
                     } catch (Exception e) {
                         pullCallback.onException(e);
@@ -542,8 +531,7 @@ public class MQClientAPIImpl {
         return this.processPullResponse(response);
     }
 
-    private PullResult processPullResponse(
-        final RemotingCommand response) throws MQBrokerException, RemotingCommandException {
+    private PullResult processPullResponse(final RemotingCommand response) throws MQBrokerException, RemotingCommandException {
         PullStatus pullStatus = PullStatus.NO_NEW_MSG;
         switch (response.getCode()) {
             case ResponseCode.SUCCESS:
@@ -558,13 +546,12 @@ public class MQClientAPIImpl {
             case ResponseCode.PULL_OFFSET_MOVED:
                 pullStatus = PullStatus.OFFSET_ILLEGAL;
                 break;
-
             default:
                 throw new MQBrokerException(response.getCode(), response.getRemark());
         }
 
         PullMessageResponseHeader responseHeader =
-            (PullMessageResponseHeader) response.decodeCommandCustomHeader(PullMessageResponseHeader.class);
+                (PullMessageResponseHeader) response.decodeCommandCustomHeader(PullMessageResponseHeader.class);
 
         return new PullResultExt(pullStatus, responseHeader.getNextBeginOffset(), responseHeader.getMinOffset(),
             responseHeader.getMaxOffset(), null, responseHeader.getSuggestWhichBrokerId(), response.getBody());
@@ -575,20 +562,13 @@ public class MQClientAPIImpl {
         ViewMessageRequestHeader requestHeader = new ViewMessageRequestHeader();
         requestHeader.setOffset(phyoffset);
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.VIEW_MESSAGE_BY_ID, requestHeader);
-
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
             request, timeoutMillis);
         assert response != null;
-        switch (response.getCode()) {
-            case ResponseCode.SUCCESS: {
-                ByteBuffer byteBuffer = ByteBuffer.wrap(response.getBody());
-                MessageExt messageExt = MessageDecoder.clientDecode(byteBuffer, true);
-                return messageExt;
-            }
-            default:
-                break;
+        if (response.getCode() == ResponseCode.SUCCESS) {
+            ByteBuffer byteBuffer = ByteBuffer.wrap(response.getBody());
+            return MessageDecoder.clientDecode(byteBuffer, true);
         }
-
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
@@ -649,16 +629,12 @@ public class MQClientAPIImpl {
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
             request, timeoutMillis);
         assert response != null;
-        switch (response.getCode()) {
-            case ResponseCode.SUCCESS: {
-                if (response.getBody() != null) {
-                    GetConsumerListByGroupResponseBody body =
+        if (response.getCode() == ResponseCode.SUCCESS) {
+            if (response.getBody() != null) {
+                GetConsumerListByGroupResponseBody body =
                         GetConsumerListByGroupResponseBody.decode(response.getBody(), GetConsumerListByGroupResponseBody.class);
-                    return body.getConsumerIdList();
-                }
+                return body.getConsumerIdList();
             }
-            default:
-                break;
         }
 
         throw new MQBrokerException(response.getCode(), response.getRemark());
@@ -723,17 +699,12 @@ public class MQClientAPIImpl {
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
             request, timeoutMillis);
         assert response != null;
-        switch (response.getCode()) {
-            case ResponseCode.SUCCESS: {
-                QueryConsumerOffsetResponseHeader responseHeader =
+        if (response.getCode() == ResponseCode.SUCCESS) {
+            QueryConsumerOffsetResponseHeader responseHeader =
                     (QueryConsumerOffsetResponseHeader) response.decodeCommandCustomHeader(QueryConsumerOffsetResponseHeader.class);
 
-                return responseHeader.getOffset();
-            }
-            default:
-                break;
+            return responseHeader.getOffset();
         }
-
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
@@ -744,17 +715,11 @@ public class MQClientAPIImpl {
     ) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UPDATE_CONSUMER_OFFSET, requestHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            request, timeoutMillis);
+        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
         assert response != null;
-        switch (response.getCode()) {
-            case ResponseCode.SUCCESS: {
-                return;
-            }
-            default:
-                break;
+        if (response.getCode() == ResponseCode.SUCCESS) {
+            return;
         }
-
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
@@ -897,10 +862,12 @@ public class MQClientAPIImpl {
             LockBatchResponseBody responseBody = LockBatchResponseBody.decode(response.getBody(), LockBatchResponseBody.class);
             return responseBody.getLockOKMQSet();
         }
-
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    /**
+     *RequestCode.UNLOCK_BATCH_MQ
+     */
     public void unlockBatchMQ(
         final String addr,
         final UnlockBatchRequestBody requestBody,
@@ -908,28 +875,20 @@ public class MQClientAPIImpl {
         final boolean oneway
     ) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UNLOCK_BATCH_MQ, null);
-
         request.setBody(requestBody.encode());
-
         if (oneway) {
             this.remotingClient.invokeOneway(addr, request, timeoutMillis);
         } else {
-            RemotingCommand response = this.remotingClient
-                .invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
-            switch (response.getCode()) {
-                case ResponseCode.SUCCESS: {
-                    return;
-                }
-                default:
-                    break;
+            RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
+            if (response.getCode() == ResponseCode.SUCCESS) {
+                return;
             }
-
             throw new MQBrokerException(response.getCode(), response.getRemark());
         }
     }
 
     public TopicStatsTable getTopicStatsInfo(final String addr, final String topic,
-        final long timeoutMillis) throws InterruptedException,
+                                             final long timeoutMillis) throws InterruptedException,
         RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
         GetTopicStatsInfoRequestHeader requestHeader = new GetTopicStatsInfoRequestHeader();
         requestHeader.setTopic(topic);

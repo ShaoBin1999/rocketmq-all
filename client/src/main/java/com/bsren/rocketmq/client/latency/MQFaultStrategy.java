@@ -74,11 +74,14 @@ public class MQFaultStrategy {
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) {
             try {
+                // 这个index，每次选择一个队列，tpInfo中的ThreadLocalIndex都会加1，意味着，每个线程去获取队列，其实都是负载均衡的
                 int index = tpInfo.getSendWhichQueue().getAndIncrement();
+                // 与队列的长度取模，根据最后的pos取一个队列
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
                     int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size();
                     if (pos < 0)
                         pos = 0;
+                    //判断取到的队列的broker是否故障中，如果不是故障中，就返回即可
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
                     if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) {
                         if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName))
@@ -86,9 +89,12 @@ public class MQFaultStrategy {
                     }
                 }
 
+                //如果所有的队列都是故障中的话，那么就从故障列表取出一个Broker即可(待会再看实现)
                 final String notBestBroker = latencyFaultTolerance.pickOneAtLeast();
+                //获取这个broker的可写队列数，如果该Broker没有可写的队列，则返回-1
                 int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker);
                 if (writeQueueNums > 0) {
+                    //再次选择一次队列，通过与队列的长度取模确定队列的位置
                     final MessageQueue mq = tpInfo.selectOneMessageQueue();
                     if (notBestBroker != null) {
                         mq.setBrokerName(notBestBroker);
@@ -96,15 +102,16 @@ public class MQFaultStrategy {
                     }
                     return mq;
                 } else {
+                    //没有可写的队列，直接从故障列表移除
                     latencyFaultTolerance.remove(notBestBroker);
                 }
             } catch (Exception e) {
                 log.error("Error occurred when selecting message queue", e);
             }
-
+            //如果故障列表中也没有可写的队列，则直接从tpInfo中获取一个
             return tpInfo.selectOneMessageQueue();
         }
-
+        //没有开启延迟故障，直接从TopicPublishInfo通过取模的方式获取队列即可，如果LastBrokerName不为空，则需要过滤掉brokerName=lastBrokerName的队列
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 

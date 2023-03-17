@@ -68,20 +68,16 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
      */
     public RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
 
-        final RemotingCommand response =
-            RemotingCommand.createResponseCommand(GetConsumerListByGroupResponseHeader.class);
+        final RemotingCommand response = RemotingCommand.createResponseCommand(GetConsumerListByGroupResponseHeader.class);
 
         final GetConsumerListByGroupRequestHeader requestHeader =
-            (GetConsumerListByGroupRequestHeader) request
-                .decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
+            (GetConsumerListByGroupRequestHeader) request.decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
 
-        ConsumerGroupInfo consumerGroupInfo =
-            this.brokerController.getConsumerManager().getConsumerGroupInfo(requestHeader.getConsumerGroup());
+        ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(requestHeader.getConsumerGroup());
         if (consumerGroupInfo != null) {
             List<String> clientIds = consumerGroupInfo.getAllClientId();
             if (!clientIds.isEmpty()) {
-                GetConsumerListByGroupResponseBody body = new GetConsumerListByGroupResponseBody();
-                body.setConsumerIdList(clientIds);
+                GetConsumerListByGroupResponseBody body = new GetConsumerListByGroupResponseBody(clientIds);
                 response.setBody(body.encode());
                 response.setCode(ResponseCode.SUCCESS);
                 response.setRemark(null);

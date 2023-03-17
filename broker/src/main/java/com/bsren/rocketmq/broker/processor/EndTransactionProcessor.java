@@ -18,10 +18,15 @@ package com.bsren.rocketmq.broker.processor;
 
 import com.bsren.rocketmq.broker.BrokerController;
 import com.bsren.rocketmq.common.constant.LoggerName;
+import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.protocol.header.EndTransactionRequestHeader;
+import com.bsren.rocketmq.common.sysflag.MessageSysFlag;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
+import com.bsren.rocketmq.store.MessageExtBrokerInner;
+import com.bsren.rocketmq.store.MessageStore;
+import com.bsren.rocketmq.store.PutMessageResult;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.common.TopicFilterType;

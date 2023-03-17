@@ -22,6 +22,10 @@ import com.bsren.rocketmq.remoting.protocol.RemotingSerializable;
 import java.util.List;
 
 public class GetConsumerListByGroupResponseBody extends RemotingSerializable {
+    public GetConsumerListByGroupResponseBody(List<String> consumerIdList) {
+        this.consumerIdList = consumerIdList;
+    }
+
     private List<String> consumerIdList;
 
     public List<String> getConsumerIdList() {

@@ -31,6 +31,7 @@ import com.bsren.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import com.bsren.rocketmq.remoting.protocol.RemotingSysResponseCode;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslContext;
@@ -405,25 +406,26 @@ public abstract class NettyRemotingAbstract {
             final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis, null, null);
             this.responseTable.put(opaque, responseFuture);
             final SocketAddress addr = channel.remoteAddress();
-            channel.writeAndFlush(request).addListener((ChannelFutureListener) f -> {
-                if (f.isSuccess()) {
-                    responseFuture.setSendRequestOK(true);
-                    return;
+            channel.writeAndFlush(request).addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture f) throws Exception {
+                    if (f.isSuccess()) {
+                        responseFuture.setSendRequestOK(true);
+                        return;
+                    }
+                    responseFuture.setSendRequestOK(false);
+                    responseTable.remove(opaque);
+                    responseFuture.setCause(f.cause());
+                    responseFuture.putResponse(null);
+                    log.warn("Failed to write a request command to {}, caused by underlying I/O operation failure", addr);
                 }
-
-                responseFuture.setSendRequestOK(false);
-                responseTable.remove(opaque);
-                responseFuture.setCause(f.cause());
-                responseFuture.putResponse(null);
-                log.warn("Failed to write a request command to {}, caused by underlying I/O operation failure", addr);
             });
 
             //因为是异步线程，这里等待一下获取responseFuture
             RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
             if (null == responseCommand) {
                 if (responseFuture.isSendRequestOK()) {
-                    throw new RemotingTimeoutException(RemotingHelper.parseSocketAddressAddr(addr), timeoutMillis,
-                        responseFuture.getCause());
+                    throw new RemotingTimeoutException(RemotingHelper.parseSocketAddressAddr(addr), timeoutMillis, responseFuture.getCause());
                 } else {
                     throw new RemotingSendRequestException(RemotingHelper.parseSocketAddressAddr(addr), responseFuture.getCause());
                 }

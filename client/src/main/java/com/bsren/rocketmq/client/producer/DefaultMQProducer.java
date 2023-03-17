@@ -17,12 +17,16 @@
 package com.bsren.rocketmq.client.producer;
 
 import com.bsren.rocketmq.client.ClientConfig;
+import com.bsren.rocketmq.client.QueryResult;
+import com.bsren.rocketmq.client.Validators;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
 import com.bsren.rocketmq.client.impl.producer.DefaultMQProducerImpl;
+import com.bsren.rocketmq.client.producer.selector.MessageQueueSelector;
+import com.bsren.rocketmq.client.producer.transanction.LocalTransactionExecutor;
+import com.bsren.rocketmq.client.producer.transanction.TransactionSendResult;
 import com.bsren.rocketmq.common.MixAll;
-import com.bsren.rocketmq.common.message.Message;
-import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.message.*;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
 
@@ -463,8 +467,8 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * @throws MQClientException if there is any client error.
      */
     @Override
-    public TransactionSendResult sendMessageInTransaction(Message msg, LocalTransactionExecuter tranExecuter,
-        final Object arg)
+    public TransactionSendResult sendMessageInTransaction(Message msg, LocalTransactionExecutor tranExecuter,
+                                                          final Object arg)
         throws MQClientException {
         throw new RuntimeException("sendMessageInTransaction not implement, please use TransactionMQProducer class");
     }

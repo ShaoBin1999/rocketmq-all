@@ -405,7 +405,6 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             requestBody.getConsumerGroup(),
             requestBody.getMqSet(),
             requestBody.getClientId());
-
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;

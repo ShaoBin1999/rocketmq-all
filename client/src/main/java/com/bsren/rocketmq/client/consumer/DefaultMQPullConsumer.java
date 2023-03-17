@@ -25,17 +25,12 @@ import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
 import com.bsren.rocketmq.client.impl.consumer.DefaultMQPullConsumerImpl;
 import com.bsren.rocketmq.common.MixAll;
+import com.bsren.rocketmq.common.message.MessageDecoder;
 import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.common.protocol.heartbeat.MessageModel;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.client.QueryResult;
-import org.apache.rocketmq.client.exception.MQBrokerException;
-import org.apache.rocketmq.common.message.MessageDecoder;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.remoting.exception.RemotingException;
 
 import java.util.HashSet;
 import java.util.Set;

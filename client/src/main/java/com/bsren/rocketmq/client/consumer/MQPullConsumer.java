@@ -55,8 +55,7 @@ public interface MQPullConsumer extends MQConsumer {
      * @return The resulting {@code PullRequest}
      */
     PullResult pull(final MessageQueue mq, final String subExpression, final long offset,
-                    final int maxNums) throws MQClientException, RemotingException, MQBrokerException,
-        InterruptedException;
+                    final int maxNums) throws MQClientException, RemotingException, MQBrokerException, InterruptedException;
 
     /**
      * Pulling the messages in the specified timeout

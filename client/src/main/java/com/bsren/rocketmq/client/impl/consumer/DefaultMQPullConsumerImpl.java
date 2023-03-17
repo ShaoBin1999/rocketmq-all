@@ -17,66 +17,39 @@
 package com.bsren.rocketmq.client.impl.consumer;
 
 import com.bsren.rocketmq.client.QueryResult;
+import com.bsren.rocketmq.client.Validators;
 import com.bsren.rocketmq.client.consumer.DefaultMQPullConsumer;
 import com.bsren.rocketmq.client.consumer.PullCallback;
 import com.bsren.rocketmq.client.consumer.PullResult;
+import com.bsren.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import com.bsren.rocketmq.client.consumer.store.LocalFileOffsetStore;
 import com.bsren.rocketmq.client.consumer.store.OffsetStore;
 import com.bsren.rocketmq.client.consumer.store.ReadOffsetType;
+import com.bsren.rocketmq.client.consumer.store.RemoteBrokerOffsetStore;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
 import com.bsren.rocketmq.client.hook.ConsumeMessageContext;
 import com.bsren.rocketmq.client.hook.ConsumeMessageHook;
 import com.bsren.rocketmq.client.hook.FilterMessageHook;
+import com.bsren.rocketmq.client.impl.CommunicationMode;
+import com.bsren.rocketmq.client.impl.MQClientManager;
 import com.bsren.rocketmq.client.impl.factory.MQClientInstance;
 import com.bsren.rocketmq.client.log.ClientLogger;
 import com.bsren.rocketmq.common.*;
-import com.bsren.rocketmq.common.message.Message;
-import com.bsren.rocketmq.common.message.MessageExt;
-import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.consumer.ConsumeFromWhere;
+import com.bsren.rocketmq.common.filter.FilterAPI;
+import com.bsren.rocketmq.common.message.*;
+import com.bsren.rocketmq.common.protocol.body.ConsumerRunningInfo;
+import com.bsren.rocketmq.common.protocol.heartbeat.ConsumeType;
+import com.bsren.rocketmq.common.protocol.heartbeat.MessageModel;
+import com.bsren.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import com.bsren.rocketmq.common.sysflag.PullSysFlag;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.client.QueryResult;
-import org.apache.rocketmq.client.Validators;
-import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
-import org.apache.rocketmq.client.consumer.PullCallback;
-import org.apache.rocketmq.client.consumer.PullResult;
-import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
-import org.apache.rocketmq.client.consumer.store.LocalFileOffsetStore;
-import org.apache.rocketmq.client.consumer.store.OffsetStore;
-import org.apache.rocketmq.client.consumer.store.ReadOffsetType;
-import org.apache.rocketmq.client.consumer.store.RemoteBrokerOffsetStore;
-import org.apache.rocketmq.client.exception.MQBrokerException;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.client.hook.ConsumeMessageContext;
-import org.apache.rocketmq.client.hook.ConsumeMessageHook;
-import org.apache.rocketmq.client.hook.FilterMessageHook;
-import org.apache.rocketmq.client.impl.CommunicationMode;
-import org.apache.rocketmq.client.impl.MQClientManager;
-import org.apache.rocketmq.client.impl.factory.MQClientInstance;
-import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.ServiceState;
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.common.filter.FilterAPI;
-import org.apache.rocketmq.common.help.FAQUrl;
-import org.apache.rocketmq.common.message.*;
-import org.apache.rocketmq.common.protocol.body.ConsumerRunningInfo;
-import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
-import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
-import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
-import org.apache.rocketmq.common.sysflag.PullSysFlag;
-import org.apache.rocketmq.remoting.RPCHook;
-import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
-
-import static com.bsren.rocketmq.common.ServiceState.CREATE_JUST;
-import static com.bsren.rocketmq.common.ServiceState.RUNNING;
 
 public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     private final Logger log = ClientLogger.getLog();
@@ -176,14 +149,17 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return this.pullSyncImpl(mq, subExpression, offset, maxNums, false, timeout);
     }
 
-    private PullResult pullSyncImpl(MessageQueue mq, String subExpression, long offset, int maxNums, boolean block,
+    private PullResult pullSyncImpl(MessageQueue mq,
+                                    String subExpression,
+                                    long offset,
+                                    int maxNums,
+                                    boolean block,
                                     long timeout)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         this.makeSureStateOK();
 
         if (null == mq) {
             throw new MQClientException("mq is null", null);
-
         }
 
         if (offset < 0) {
@@ -200,8 +176,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
         SubscriptionData subscriptionData;
         try {
-            subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPullConsumer.getConsumerGroup(),
-                mq.getTopic(), subExpression);
+            subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPullConsumer.getConsumerGroup(), mq.getTopic(), subExpression);
         } catch (Exception e) {
             throw new MQClientException("parse subscription error", e);
         }
@@ -223,8 +198,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         );
         this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData);
         if (!this.consumeMessageHookList.isEmpty()) {
-            ConsumeMessageContext consumeMessageContext = null;
-            consumeMessageContext = new ConsumeMessageContext();
+            ConsumeMessageContext consumeMessageContext = new ConsumeMessageContext();
             consumeMessageContext.setConsumerGroup(this.groupName());
             consumeMessageContext.setMq(mq);
             consumeMessageContext.setMsgList(pullResult.getMsgFoundList());
@@ -237,6 +211,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return pullResult;
     }
 
+    //获得topic下的订阅信息
     public void subscriptionAutomatically(final String topic) {
         if (!this.rebalanceImpl.getSubscriptionInner().containsKey(topic)) {
             try {
@@ -296,7 +271,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
     @Override
     public Set<SubscriptionData> subscriptions() {
-        Set<SubscriptionData> result = new HashSet<SubscriptionData>();
+        Set<SubscriptionData> result = new HashSet<>();
 
         Set<String> topics = this.defaultMQPullConsumer.getRegisterTopics();
         if (topics != null) {
@@ -308,8 +283,10 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                     } catch (Exception e) {
                         log.error("parse subscription error", e);
                     }
-                    ms.setSubVersion(0L);
-                    result.add(ms);
+                    if (ms != null) {
+                        ms.setSubVersion(0L);
+                        result.add(ms);
+                    }
                 }
             }
         }
@@ -328,9 +305,8 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     public void persistConsumerOffset() {
         try {
             this.makeSureStateOK();
-            Set<MessageQueue> mqs = new HashSet<MessageQueue>();
             Set<MessageQueue> allocateMq = this.rebalanceImpl.getProcessQueueTable().keySet();
-            mqs.addAll(allocateMq);
+            Set<MessageQueue> mqs = new HashSet<>(allocateMq);
             this.offsetStore.persistAll(mqs);
         } catch (Exception e) {
             log.error("group: " + this.defaultMQPullConsumer.getConsumerGroup() + " persistConsumerOffset exception", e);
@@ -355,7 +331,6 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                 return !this.rebalanceImpl.topicSubscribeInfoTable.containsKey(topic);
             }
         }
-
         return false;
     }
 
@@ -467,7 +442,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     }
 
     public void pullBlockIfNotFound(MessageQueue mq, String subExpression, long offset, int maxNums,
-                                    PullCallback pullCallback)
+        PullCallback pullCallback)
         throws MQClientException, RemotingException, InterruptedException {
         this.pullAsyncImpl(mq, subExpression, offset, maxNums, pullCallback, true,
             this.getDefaultMQPullConsumer().getConsumerPullTimeoutMillis());

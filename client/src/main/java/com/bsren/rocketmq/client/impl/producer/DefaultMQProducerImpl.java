@@ -17,6 +17,7 @@
 package com.bsren.rocketmq.client.impl.producer;
 
 
+import com.bsren.rocketmq.client.QueryResult;
 import com.bsren.rocketmq.client.Validators;
 import com.bsren.rocketmq.client.common.ClientErrorCode;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
@@ -31,15 +32,14 @@ import com.bsren.rocketmq.client.impl.factory.MQClientInstance;
 import com.bsren.rocketmq.client.latency.MQFaultStrategy;
 import com.bsren.rocketmq.client.log.ClientLogger;
 import com.bsren.rocketmq.client.producer.*;
-import com.bsren.rocketmq.common.FAQUrl;
-import com.bsren.rocketmq.common.MixAll;
-import com.bsren.rocketmq.common.ServiceState;
-import com.bsren.rocketmq.common.message.Message;
-import com.bsren.rocketmq.common.message.MessageConst;
-import com.bsren.rocketmq.common.message.MessageExt;
-import com.bsren.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.client.producer.selector.MessageQueueSelector;
+import com.bsren.rocketmq.client.producer.transanction.*;
+import com.bsren.rocketmq.common.*;
+import com.bsren.rocketmq.common.message.*;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
 import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 import com.bsren.rocketmq.common.protocol.header.EndTransactionRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.SendMessageRequestHeader;
 import com.bsren.rocketmq.common.sysflag.MessageSysFlag;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingConnectException;
@@ -55,21 +55,22 @@ import java.util.List;
 import java.util.concurrent.*;
 
 public class DefaultMQProducerImpl implements MQProducerInner {
+
     private final Logger log = ClientLogger.getLog();
     private final Random random = new Random();
     private final DefaultMQProducer defaultMQProducer;
     private final ConcurrentMap<String/* topic */, TopicPublishInfo> topicPublishInfoTable =
-        new ConcurrentHashMap<String, TopicPublishInfo>();
-    private final ArrayList<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();
+            new ConcurrentHashMap<>();
+    private final ArrayList<SendMessageHook> sendMessageHookList = new ArrayList<>();
     private final RPCHook rpcHook;
     protected BlockingQueue<Runnable> checkRequestQueue;
     protected ExecutorService checkExecutor;
     private ServiceState serviceState = ServiceState.CREATE_JUST;
     private MQClientInstance mQClientFactory;
-    private ArrayList<CheckForbiddenHook> checkForbiddenHookList = new ArrayList<CheckForbiddenHook>();
+    private final ArrayList<CheckForbiddenHook> checkForbiddenHookList = new ArrayList<>();
     private int zipCompressLevel = Integer.parseInt(System.getProperty(MixAll.MESSAGE_COMPRESS_LEVEL, "5"));
 
-    private MQFaultStrategy mqFaultStrategy = new MQFaultStrategy();
+    private final MQFaultStrategy mqFaultStrategy = new MQFaultStrategy();
 
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer) {
         this(defaultMQProducer, null);
@@ -228,7 +229,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             public void run() {
                 TransactionCheckListener transactionCheckListener = DefaultMQProducerImpl.this.checkListener();
                 if (transactionCheckListener != null) {
-                    LocalTransactionState localTransactionState = LocalTransactionState.UNKNOW;
+                    LocalTransactionState localTransactionState = LocalTransactionState.UNKNOWN;
                     Throwable exception = null;
                     try {
                         localTransactionState = transactionCheckListener.checkLocalTransactionState(message);
@@ -270,7 +271,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         thisHeader.setCommitOrRollback(MessageSysFlag.TRANSACTION_ROLLBACK_TYPE);
                         log.warn("when broker check, client rollback this transaction, {}", thisHeader);
                         break;
-                    case UNKNOW:
+                    case UNKNOWN:
                         thisHeader.setCommitOrRollback(MessageSysFlag.TRANSACTION_NOT_TYPE);
                         log.warn("when broker check, client does not know this transaction state, {}", thisHeader);
                         break;
@@ -400,11 +401,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     private SendResult sendDefaultImpl(
-        Message msg,
-        final CommunicationMode communicationMode,
-        final SendCallback sendCallback,
-        final long timeout
+            Message msg,
+            final CommunicationMode communicationMode,
+            final SendCallback sendCallback,
+            final long timeout
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+
         this.makeSureStateOK();
         Validators.checkMessage(msg, this.defaultMQProducer);
 
@@ -433,7 +435,6 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         switch (communicationMode) {
                             case ASYNC:
-                                return null;
                             case ONEWAY:
                                 return null;
                             case SYNC:
@@ -447,20 +448,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             default:
                                 break;
                         }
-                    } catch (RemotingException e) {
+                    } catch (RemotingException | MQClientException e) {
                         endTimestamp = System.currentTimeMillis();
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
                         log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
                         log.warn(msg.toString());
                         exception = e;
-                        continue;
-                    } catch (MQClientException e) {
-                        endTimestamp = System.currentTimeMillis();
-                        this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
-                        log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
-                        log.warn(msg.toString());
-                        exception = e;
-                        continue;
                     } catch (MQBrokerException e) {
                         endTimestamp = System.currentTimeMillis();
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
@@ -541,13 +534,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
         }
 
-        if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) {
-            return topicPublishInfo;
-        } else {
+        if (!topicPublishInfo.isHaveTopicRouterInfo() && !topicPublishInfo.ok()) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer);
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
-            return topicPublishInfo;
         }
+        return topicPublishInfo;
     }
 
     private SendResult sendKernelImpl(final Message msg,
@@ -579,7 +570,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 }
 
                 final String tranMsg = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
-                if (tranMsg != null && Boolean.parseBoolean(tranMsg)) {
+                if (Boolean.parseBoolean(tranMsg)) {
                     sysFlag |= MessageSysFlag.TRANSACTION_PREPARED_TYPE;
                 }
 
@@ -606,7 +597,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     context.setMq(mq);
                     String isTrans = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                     if (isTrans != null && isTrans.equals("true")) {
-                        context.setMsgType(TrayIcon.MessageType.Trans_Msg_Half);
+                        context.setMsgType(MessageType.Trans_Msg_Half);
                     }
 
                     if (msg.getProperty("__STARTDELIVERTIME") != null || msg.getProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL) != null) {
@@ -614,6 +605,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     }
                     this.executeSendMessageHookBefore(context);
                 }
+
 
                 SendMessageRequestHeader requestHeader = new SendMessageRequestHeader();
                 requestHeader.setProducerGroup(this.defaultMQProducer.getProducerGroup());
@@ -712,6 +704,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return mQClientFactory;
     }
 
+    /**
+     * 如果Msg不是messageBatch，且超过了压缩阈值，则对其进行压缩
+     */
     private boolean tryToCompressMessage(final Message msg) {
         if (msg instanceof MessageBatch) {
             //batch dose not support compressing right now
@@ -1013,7 +1008,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             case ROLLBACK_MESSAGE:
                 requestHeader.setCommitOrRollback(MessageSysFlag.TRANSACTION_ROLLBACK_TYPE);
                 break;
-            case UNKNOW:
+            case UNKNOWN:
                 requestHeader.setCommitOrRollback(MessageSysFlag.TRANSACTION_NOT_TYPE);
                 break;
             default:

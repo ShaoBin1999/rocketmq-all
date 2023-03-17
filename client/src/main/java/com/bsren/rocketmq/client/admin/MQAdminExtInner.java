@@ -14,28 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.client.producer.selector;
+package com.bsren.rocketmq.client.admin;
 
-import com.bsren.rocketmq.client.producer.MessageQueueSelector;
-import com.bsren.rocketmq.common.message.Message;
-import com.bsren.rocketmq.common.message.MessageQueue;
+public interface MQAdminExtInner {
 
-import java.util.List;
-import java.util.Set;
-
-public class SelectMessageQueueByMachineRoom implements MessageQueueSelector {
-    private Set<String> consumeridcs;
-
-    @Override
-    public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
-        return null;
-    }
-
-    public Set<String> getConsumeridcs() {
-        return consumeridcs;
-    }
-
-    public void setConsumeridcs(Set<String> consumeridcs) {
-        this.consumeridcs = consumeridcs;
-    }
 }

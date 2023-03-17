@@ -16,6 +16,7 @@
  */
 package com.bsren.rocketmq.client.consumer;
 
+import com.bsren.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.ThreadFactoryImpl;
@@ -30,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import static com.bsren.rocketmq.common.protocol.heartbeat.MessageModel.BROADCASTING;
 
 /**
  * Schedule service for pull consumer

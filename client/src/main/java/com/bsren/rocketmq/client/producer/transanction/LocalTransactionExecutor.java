@@ -14,27 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.client.impl.producer;
+package com.bsren.rocketmq.client.producer.transanction;
 
-import com.bsren.rocketmq.client.producer.transanction.TransactionCheckListener;
-import com.bsren.rocketmq.common.message.MessageExt;
-import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 
-import java.util.Set;
+import com.bsren.rocketmq.common.message.Message;
 
-public interface MQProducerInner {
-    Set<String> getPublishTopicList();
-
-    boolean isPublishTopicNeedUpdate(final String topic);
-
-    TransactionCheckListener checkListener();
-
-    void checkTransactionState(
-        final String addr,
-        final MessageExt msg,
-        final CheckTransactionStateRequestHeader checkRequestHeader);
-
-    void updateTopicPublishInfo(final String topic, final TopicPublishInfo info);
-
-    boolean isUnitMode();
+public interface LocalTransactionExecutor {
+    LocalTransactionState executeLocalTransactionBranch(final Message msg, final Object arg);
 }

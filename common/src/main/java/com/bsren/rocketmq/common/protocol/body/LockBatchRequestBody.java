@@ -26,7 +26,20 @@ import java.util.Set;
 public class LockBatchRequestBody extends RemotingSerializable {
     private String consumerGroup;
     private String clientId;
-    private Set<MessageQueue> mqSet = new HashSet<MessageQueue>();
+    private Set<MessageQueue> mqSet;
+
+    public LockBatchRequestBody(String consumerGroup, String clientId, Set<MessageQueue> mqSet) {
+        this.consumerGroup = consumerGroup;
+        this.clientId = clientId;
+        this.mqSet = mqSet;
+    }
+
+    public LockBatchRequestBody(String consumerGroup, String clientId,MessageQueue messageQueue) {
+        this.consumerGroup = consumerGroup;
+        this.clientId = clientId;
+        this.mqSet = new HashSet<>();
+        mqSet.add(messageQueue);
+    }
 
     public String getConsumerGroup() {
         return consumerGroup;

@@ -47,8 +47,7 @@ public class LocalFileOffsetStore implements OffsetStore {
     private final MQClientInstance mQClientFactory;
     private final String groupName;
     private final String storePath;
-    private ConcurrentMap<MessageQueue, AtomicLong> offsetTable =
-            new ConcurrentHashMap<>();
+    private ConcurrentMap<MessageQueue, AtomicLong> offsetTable = new ConcurrentHashMap<>();
 
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
         this.mQClientFactory = mQClientFactory;
@@ -67,10 +66,7 @@ public class LocalFileOffsetStore implements OffsetStore {
 
             for (MessageQueue mq : offsetSerializeWrapper.getOffsetTable().keySet()) {
                 AtomicLong offset = offsetSerializeWrapper.getOffsetTable().get(mq);
-                log.info("load consumer's offset, {} {} {}",
-                    this.groupName,
-                    mq,
-                    offset.get());
+                log.info("load consumer's offset, {} {} {}", this.groupName, mq, offset.get());
             }
         }
     }
@@ -93,6 +89,13 @@ public class LocalFileOffsetStore implements OffsetStore {
         }
     }
 
+    /**
+     * 巧妙的设计
+     * MEMORY_FIRST_THEN_STORE 先读内存后文件
+     * READ_FROM_MEMORY
+     * READ_FROM_STORE
+     * case上先读缓存后文件最先，并不break，先放行到只读缓存再放行到只读文件
+     */
     @Override
     public long readOffset(final MessageQueue mq, final ReadOffsetType type) {
         if (mq != null) {
@@ -158,15 +161,14 @@ public class LocalFileOffsetStore implements OffsetStore {
 
     @Override
     public void removeOffset(MessageQueue mq) {
-
     }
 
     @Override
     public void updateConsumeOffsetToBroker(final MessageQueue mq, final long offset, final boolean isOneway)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-
     }
 
+    //获取特定topic下的map<queue,long>
     @Override
     public Map<MessageQueue, Long> cloneOffsetTable(String topic) {
         Map<MessageQueue, Long> cloneOffsetTable = new HashMap<MessageQueue, Long>();
@@ -176,11 +178,14 @@ public class LocalFileOffsetStore implements OffsetStore {
                 continue;
             }
             cloneOffsetTable.put(mq, entry.getValue().get());
-
         }
         return cloneOffsetTable;
     }
 
+    /**
+     * 从storePath中读取内容
+     * 如果为空，则尝试去读bak备份文件
+     */
     private OffsetSerializeWrapper readLocalOffset() throws MQClientException {
         String content = null;
         try {
@@ -193,13 +198,11 @@ public class LocalFileOffsetStore implements OffsetStore {
         } else {
             OffsetSerializeWrapper offsetSerializeWrapper = null;
             try {
-                offsetSerializeWrapper =
-                    OffsetSerializeWrapper.fromJson(content, OffsetSerializeWrapper.class);
+                offsetSerializeWrapper = OffsetSerializeWrapper.fromJson(content, OffsetSerializeWrapper.class);
             } catch (Exception e) {
                 log.warn("readLocalOffset Exception, and try to correct", e);
                 return this.readLocalOffsetBak();
             }
-
             return offsetSerializeWrapper;
         }
     }
@@ -217,17 +220,13 @@ public class LocalFileOffsetStore implements OffsetStore {
         if (content != null && content.length() > 0) {
             OffsetSerializeWrapper offsetSerializeWrapper = null;
             try {
-                offsetSerializeWrapper =
-                    OffsetSerializeWrapper.fromJson(content, OffsetSerializeWrapper.class);
+                offsetSerializeWrapper = OffsetSerializeWrapper.fromJson(content, OffsetSerializeWrapper.class);
             } catch (Exception e) {
                 log.warn("readLocalOffset Exception", e);
-                throw new MQClientException("readLocalOffset Exception, maybe fastjson version too low"
-                    + FAQUrl.suggestTodo(FAQUrl.LOAD_JSON_EXCEPTION),
-                    e);
+                throw new MQClientException("readLocalOffset Exception, maybe fastjson version too low" + FAQUrl.suggestTodo(FAQUrl.LOAD_JSON_EXCEPTION), e);
             }
             return offsetSerializeWrapper;
         }
-
         return null;
     }
 }

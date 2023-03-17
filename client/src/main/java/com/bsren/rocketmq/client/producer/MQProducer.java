@@ -19,6 +19,9 @@ package com.bsren.rocketmq.client.producer;
 import com.bsren.rocketmq.client.MQAdmin;
 import com.bsren.rocketmq.client.exception.MQBrokerException;
 import com.bsren.rocketmq.client.exception.MQClientException;
+import com.bsren.rocketmq.client.producer.selector.MessageQueueSelector;
+import com.bsren.rocketmq.client.producer.transanction.LocalTransactionExecutor;
+import com.bsren.rocketmq.client.producer.transanction.TransactionSendResult;
 import com.bsren.rocketmq.common.message.Message;
 import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
@@ -82,7 +85,7 @@ public interface MQProducer extends MQAdmin {
         throws MQClientException, RemotingException, InterruptedException;
 
     TransactionSendResult sendMessageInTransaction(final Message msg,
-        final LocalTransactionExecutor tranExecutor, final Object arg) throws MQClientException;
+                                                   final LocalTransactionExecutor tranExecutor, final Object arg) throws MQClientException;
 
     //for batch
     SendResult send(final Collection<Message> msgs) throws MQClientException, RemotingException, MQBrokerException,

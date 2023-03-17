@@ -14,9 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bsren.rocketmq.client.producer;
-import com.bsren.rocketmq.common.message.MessageExt;
+package com.bsren.rocketmq.client.producer.transanction;
 
-public interface TransactionCheckListener {
-    LocalTransactionState checkLocalTransactionState(final MessageExt msg);
+import com.bsren.rocketmq.client.producer.SendResult;
+
+public class TransactionSendResult extends SendResult {
+    private LocalTransactionState localTransactionState;
+
+    public TransactionSendResult() {
+    }
+
+    public LocalTransactionState getLocalTransactionState() {
+        return localTransactionState;
+    }
+
+    public void setLocalTransactionState(LocalTransactionState localTransactionState) {
+        this.localTransactionState = localTransactionState;
+    }
 }
