@@ -19,5 +19,7 @@ package com.bsren.rocketmq.client.consumer;
 import com.bsren.rocketmq.common.message.MessageQueue;
 
 public interface PullTaskCallback {
+
     void doPullTask(final MessageQueue mq, final PullTaskContext context);
+
 }

@@ -20,37 +20,40 @@ import com.bsren.rocketmq.client.impl.factory.MQClientInstance;
 import com.bsren.rocketmq.client.impl.producer.MQProducerInner;
 import com.bsren.rocketmq.client.log.ClientLogger;
 import com.bsren.rocketmq.common.RemotingHelper;
+import com.bsren.rocketmq.common.UtilAll;
 import com.bsren.rocketmq.common.message.MessageConst;
 import com.bsren.rocketmq.common.message.MessageDecoder;
 import com.bsren.rocketmq.common.message.MessageExt;
 import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.common.protocol.RequestCode;
+import com.bsren.rocketmq.common.protocol.ResponseCode;
 import com.bsren.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 import com.bsren.rocketmq.common.protocol.body.ConsumerRunningInfo;
 import com.bsren.rocketmq.common.protocol.body.GetConsumerStatusBody;
 import com.bsren.rocketmq.common.protocol.body.ResetOffsetBody;
-import com.bsren.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
-import com.bsren.rocketmq.common.protocol.header.ConsumeMessageDirectlyResultRequestHeader;
-import com.bsren.rocketmq.common.protocol.header.GetConsumerRunningInfoRequestHeader;
-import com.bsren.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
+import com.bsren.rocketmq.common.protocol.header.*;
 import com.bsren.rocketmq.remoting.exception.RemotingCommandException;
 import com.bsren.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.bsren.rocketmq.remoting.protocol.RemotingCommand;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
-import org.apache.rocketmq.common.protocol.body.ConsumerRunningInfo;
-import org.apache.rocketmq.common.protocol.body.GetConsumerStatusBody;
-import org.apache.rocketmq.common.protocol.header.*;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * CHECK_TRANSACTION_STATE
+ * NOTIFY_CONSUMER_IDS_CHANGED
+ * RESET_CONSUMER_CLIENT_OFFSET
+ * GET_CONSUMER_STATUS_FROM_CLIENT
+ * GET_CONSUMER_RUNNING_INFO
+ * CONSUME_MESSAGE_DIRECTLY
+ */
 public class ClientRemotingProcessor implements NettyRequestProcessor {
+
     private final Logger log = ClientLogger.getLog();
+
     private final MQClientInstance mqClientFactory;
 
     public ClientRemotingProcessor(final MQClientInstance mqClientFactory) {
@@ -58,8 +61,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx,
-                                          RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         switch (request.getCode()) {
             case RequestCode.CHECK_TRANSACTION_STATE:
                 return this.checkTransactionState(ctx, request);
@@ -69,10 +71,8 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
                 return this.resetOffset(ctx, request);
             case RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT:
                 return this.getConsumeStatus(ctx, request);
-
             case RequestCode.GET_CONSUMER_RUNNING_INFO:
                 return this.getConsumerRunningInfo(ctx, request);
-
             case RequestCode.CONSUME_MESSAGE_DIRECTLY:
                 return this.consumeMessageDirectly(ctx, request);
             default:
@@ -86,8 +86,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return false;
     }
 
-    public RemotingCommand checkTransactionState(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand checkTransactionState(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final CheckTransactionStateRequestHeader requestHeader =
             (CheckTransactionStateRequestHeader) request.decodeCommandCustomHeader(CheckTransactionStateRequestHeader.class);
         final ByteBuffer byteBuffer = ByteBuffer.wrap(request.getBody());
@@ -108,7 +107,6 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         } else {
             log.warn("checkTransactionState, decode message failed");
         }
-
         return null;
     }
 
@@ -127,14 +125,13 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return null;
     }
 
-    public RemotingCommand resetOffset(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand resetOffset(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final ResetOffsetRequestHeader requestHeader =
             (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
         log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
             RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
             requestHeader.getTimestamp());
-        Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
+        Map<MessageQueue, Long> offsetTable = new HashMap<>();
         if (request.getBody() != null) {
             ResetOffsetBody body = ResetOffsetBody.decode(request.getBody(), ResetOffsetBody.class);
             offsetTable = body.getOffsetTable();
@@ -144,8 +141,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
     }
 
     @Deprecated
-    public RemotingCommand getConsumeStatus(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand getConsumeStatus(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
         final GetConsumerStatusRequestHeader requestHeader =
             (GetConsumerStatusRequestHeader) request.decodeCommandCustomHeader(GetConsumerStatusRequestHeader.class);

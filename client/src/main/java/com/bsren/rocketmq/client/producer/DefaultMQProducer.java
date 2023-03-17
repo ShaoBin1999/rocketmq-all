@@ -629,12 +629,6 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         return this.defaultMQProducerImpl.send(batch(msgs), messageQueue, timeout);
     }
 
-    /**
-     * Sets an Executor to be used for executing callback methods.
-     * If the Executor is not set, {@link NettyRemotingClient#publicExecutor} will be used.
-     *
-     * @param callbackExecutor the instance of Executor
-     */
     public void setCallbackExecutor(final ExecutorService callbackExecutor) {
         this.defaultMQProducerImpl.setCallbackExecutor(callbackExecutor);
     }

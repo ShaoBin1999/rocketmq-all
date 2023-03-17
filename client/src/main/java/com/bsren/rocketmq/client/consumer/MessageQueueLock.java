@@ -16,7 +16,7 @@
  */
 package com.bsren.rocketmq.client.consumer;
 
-import org.apache.rocketmq.common.message.MessageQueue;
+import com.bsren.rocketmq.common.message.MessageQueue;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;

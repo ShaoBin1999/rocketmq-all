@@ -17,6 +17,7 @@
 package com.bsren.rocketmq.client.consumer;
 
 import com.bsren.rocketmq.client.ClientConfig;
+import com.bsren.rocketmq.client.QueryResult;
 import com.bsren.rocketmq.client.consumer.listener.MessageListener;
 import com.bsren.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import com.bsren.rocketmq.client.consumer.listener.MessageListenerOrderly;
@@ -35,7 +36,6 @@ import com.bsren.rocketmq.common.message.MessageQueue;
 import com.bsren.rocketmq.common.protocol.heartbeat.MessageModel;
 import com.bsren.rocketmq.remoting.RPCHook;
 import com.bsren.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.client.QueryResult;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -586,11 +586,6 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Subscribe a topic by message selector.
-     *
-     * @param topic topic to consume.
-     * @param messageSelector {@link org.apache.rocketmq.client.consumer.MessageSelector}
-     * @see org.apache.rocketmq.client.consumer.MessageSelector#bySql
-     * @see org.apache.rocketmq.client.consumer.MessageSelector#byTag
      */
     @Override
     public void subscribe(final String topic, final MessageSelector messageSelector) throws MQClientException {

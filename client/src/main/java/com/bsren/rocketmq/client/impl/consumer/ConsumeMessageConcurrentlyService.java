@@ -141,11 +141,9 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         mq.setBrokerName(brokerName);
         mq.setTopic(msg.getTopic());
         mq.setQueueId(msg.getQueueId());
-
         ConsumeConcurrentlyContext context = new ConsumeConcurrentlyContext(mq);
 
         this.resetRetryTopic(msgs);
-
         final long beginTime = System.currentTimeMillis();
 
         log.info("consumeMessageDirectly receive new message: {}", msg);
@@ -171,16 +169,10 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             result.setRemark(RemotingHelper.exceptionSimpleDesc(e));
 
             log.warn(String.format("consumeMessageDirectly exception: %s Group: %s Msgs: %s MQ: %s",
-                RemotingHelper.exceptionSimpleDesc(e),
-                ConsumeMessageConcurrentlyService.this.consumerGroup,
-                msgs,
-                mq), e);
+                    RemotingHelper.exceptionSimpleDesc(e), ConsumeMessageConcurrentlyService.this.consumerGroup, msgs, mq), e);
         }
-
         result.setSpentTimeMills(System.currentTimeMillis() - beginTime);
-
         log.info("consumeMessageDirectly Result: {}", result);
-
         return result;
     }
 

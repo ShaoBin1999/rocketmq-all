@@ -16,10 +16,10 @@
  */
 package com.bsren.rocketmq.client.consumer;
 
-import org.apache.rocketmq.client.consumer.listener.MessageListener;
-import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
-import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
-import org.apache.rocketmq.client.exception.MQClientException;
+import com.bsren.rocketmq.client.consumer.listener.MessageListener;
+import com.bsren.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import com.bsren.rocketmq.client.consumer.listener.MessageListenerOrderly;
+import com.bsren.rocketmq.client.exception.MQClientException;
 
 /**
  * Push consumer
@@ -67,17 +67,9 @@ public interface MQPushConsumer extends MQConsumer {
      * Subscribe some topic with selector.
      * <p>
      * This interface also has the ability of {@link #subscribe(String, String)},
-     * and, support other message selection, such as {@link org.apache.rocketmq.common.filter.ExpressionType#SQL92}.
-     * </p>
-     * <p/>
-     * <p>
+     * and, support other message selection, such as
      * Choose Tag: {@link MessageSelector#byTag(String)}
-     * </p>
-     * <p/>
-     * <p>
      * Choose SQL92: {@link MessageSelector#bySql(String)}
-     * </p>
-     *
      * @param selector message selector({@link MessageSelector}), can be null.
      */
     void subscribe(final String topic, final MessageSelector selector) throws MQClientException;

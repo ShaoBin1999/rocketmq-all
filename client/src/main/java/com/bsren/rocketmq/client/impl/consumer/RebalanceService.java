@@ -21,6 +21,9 @@ import com.bsren.rocketmq.client.log.ClientLogger;
 import com.bsren.rocketmq.common.ServiceThread;
 import org.slf4j.Logger;
 
+/**
+ * 在初始化后
+ */
 public class RebalanceService extends ServiceThread {
     private static final long waitInterval = Long.parseLong(System.getProperty("rocketmq.client.rebalance.waitInterval", "20000"));
     private final Logger log = ClientLogger.getLog();

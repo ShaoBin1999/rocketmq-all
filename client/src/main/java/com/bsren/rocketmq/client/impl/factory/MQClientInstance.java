@@ -119,7 +119,7 @@ public class MQClientInstance<MQAdminExtInner> {
 
         this.consumerStatsManager = new ConsumerStatsManager(this.scheduledExecutorService);
 
-        log.info("created a new client Instance, FactoryIndex: {} ClinetID: {} {} {}, serializeType={}",
+        log.info("created a new client Instance, FactoryIndex: {} ClientID: {} {} {}, serializeType={}",
             this.instanceIndex,
             this.clientId,
             this.clientConfig,
@@ -1041,7 +1041,7 @@ public class MQClientInstance<MQAdminExtInner> {
         DefaultMQPushConsumerImpl consumer = null;
         try {
             MQConsumerInner impl = this.consumerTable.get(group);
-            if (impl != null && impl instanceof DefaultMQPushConsumerImpl) {
+            if (impl instanceof DefaultMQPushConsumerImpl) {
                 consumer = (DefaultMQPushConsumerImpl) impl;
             } else {
                 log.info("[reset-offset] consumer dose not exist. group={}", group);
@@ -1061,7 +1061,7 @@ public class MQClientInstance<MQAdminExtInner> {
 
             try {
                 TimeUnit.SECONDS.sleep(10);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
             }
 
             Iterator<MessageQueue> iterator = processQueueTable.keySet().iterator();
@@ -1087,10 +1087,10 @@ public class MQClientInstance<MQAdminExtInner> {
 
     public Map<MessageQueue, Long> getConsumerStatus(String topic, String group) {
         MQConsumerInner impl = this.consumerTable.get(group);
-        if (impl != null && impl instanceof DefaultMQPushConsumerImpl) {
+        if (impl instanceof DefaultMQPushConsumerImpl) {
             DefaultMQPushConsumerImpl consumer = (DefaultMQPushConsumerImpl) impl;
             return consumer.getOffsetStore().cloneOffsetTable(topic);
-        } else if (impl != null && impl instanceof DefaultMQPullConsumerImpl) {
+        } else if (impl instanceof DefaultMQPullConsumerImpl) {
             DefaultMQPullConsumerImpl consumer = (DefaultMQPullConsumerImpl) impl;
             return consumer.getOffsetStore().cloneOffsetTable(topic);
         } else {
@@ -1145,23 +1145,18 @@ public class MQClientInstance<MQAdminExtInner> {
 
     public ConsumerRunningInfo consumerRunningInfo(final String consumerGroup) {
         MQConsumerInner mqConsumerInner = this.consumerTable.get(consumerGroup);
-
         ConsumerRunningInfo consumerRunningInfo = mqConsumerInner.consumerRunningInfo();
-
         List<String> nsList = this.mQClientAPIImpl.getRemotingClient().getNameServerAddressList();
-
         StringBuilder strBuilder = new StringBuilder();
         if (nsList != null) {
             for (String addr : nsList) {
                 strBuilder.append(addr).append(";");
             }
         }
-
         String nsAddr = strBuilder.toString();
         consumerRunningInfo.getProperties().put(ConsumerRunningInfo.PROP_NAMESERVER_ADDR, nsAddr);
         consumerRunningInfo.getProperties().put(ConsumerRunningInfo.PROP_CONSUME_TYPE, mqConsumerInner.consumeType().name());
-        consumerRunningInfo.getProperties().put(ConsumerRunningInfo.PROP_CLIENT_VERSION,
-            MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION));
+        consumerRunningInfo.getProperties().put(ConsumerRunningInfo.PROP_CLIENT_VERSION, MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION));
 
         return consumerRunningInfo;
     }

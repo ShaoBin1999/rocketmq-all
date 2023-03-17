@@ -20,6 +20,13 @@ import com.bsren.rocketmq.common.message.MessageExt;
 
 import java.util.List;
 
+/**
+ * pullStatus
+ * nextBeginOffset
+ * minOffset
+ * maxOffset
+ * List<MessageExt>
+ */
 public class PullResult {
     private final PullStatus pullStatus;
     private final long nextBeginOffset;
