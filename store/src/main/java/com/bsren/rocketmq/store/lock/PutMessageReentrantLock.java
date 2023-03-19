@@ -16,11 +16,12 @@
  */
 package com.bsren.rocketmq.store.lock;
 
-import com.bsren.rocketmq.store.lock.PutMessageLock;
-
 import java.util.concurrent.locks.ReentrantLock;
 
 
+/**
+ * 休眠锁
+ */
 public class PutMessageReentrantLock implements PutMessageLock {
     private final ReentrantLock putMessageNormalLock = new ReentrantLock(); // NonfairSync
 

@@ -16,11 +16,11 @@
  */
 package com.bsren.rocketmq.store.lock;
 
-import com.bsren.rocketmq.store.lock.PutMessageLock;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
+/**
+ * 自旋锁
+ */
 public class PutMessageSpinLock implements PutMessageLock {
     //true: Can lock, false : in lock.
     private AtomicBoolean putMessageSpinLock = new AtomicBoolean(true);

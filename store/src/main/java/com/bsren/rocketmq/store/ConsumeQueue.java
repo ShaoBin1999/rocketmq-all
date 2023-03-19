@@ -35,10 +35,10 @@ import java.util.List;
  * 再去读取CommitLog，这个CommitLog读取的内容其实也是顺序读取的，ConsumeQueue存储的数据是先到先存，
  * 所以取出的ConsumeQueue的数据指向的CommitLog的位置也是有序的。这种设计方式充分利用了机械硬盘的物理特点，最大化磁盘读写吞吐量。
  *
- * consumequeue文件中都存储的信息如下：
- * 消息在commitlog中的偏移量（8字节）
+ * consumeQueue文件中都存储的信息如下：
+ * 消息在commitLog中的偏移量（8字节）
  * 消息的大小（4字节）
- * 消息tag的hashcode（8字节，存储tag的hashcode的原因是每个consumequeue条目都是定长的）
+ * 消息tag的hashcode（8字节，存储tag的hashcode的原因是每个consumeQueue条目都是定长的）
  */
 public class ConsumeQueue {
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -505,8 +505,7 @@ public class ConsumeQueue {
         if (offset >= this.getMinLogicOffset()) {
             MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
             if (mappedFile != null) {
-                SelectMappedBufferResult result = mappedFile.selectMappedBuffer((int) (offset % mappedFileSize));
-                return result;
+                return mappedFile.selectMappedBuffer((int) (offset % mappedFileSize));
             }
         }
         return null;
