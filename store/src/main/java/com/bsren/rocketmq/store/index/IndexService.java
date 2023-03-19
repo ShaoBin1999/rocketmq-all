@@ -45,7 +45,7 @@ public class IndexService {
     private final int hashSlotNum;
     private final int indexNum;
     private final String storePath;
-    private final ArrayList<IndexFile> indexFileList = new ArrayList<IndexFile>();
+    private final ArrayList<IndexFile> indexFileList = new ArrayList<>();
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
     public IndexService(final DefaultMessageStore store) {
@@ -56,6 +56,10 @@ public class IndexService {
             StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());
     }
 
+    /**
+     * 加载indexFile文件
+     * @param lastExitOK 如果为false，说明上次异常退出，在日志记录点之前的文件会被舍弃
+     */
     public boolean load(final boolean lastExitOK) {
         File dir = new File(this.storePath);
         File[] files = dir.listFiles();
@@ -64,12 +68,11 @@ public class IndexService {
             Arrays.sort(files);
             for (File file : files) {
                 try {
-                    IndexFile f = new IndexFile(file.getPath(), this.hashSlotNum, this.indexNum, 0, 0);
-                    f.load();
-
+                    IndexFile f = new IndexFile(file.getPath(), this.hashSlotNum, this.indexNum, 0, 0);f.load();
+                    //判断上次是否正常退出，未正常退出并且文件记录在日志保存点之后的进行舍弃
                     if (!lastExitOK) {
-                        if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()
-                            .getIndexMsgTimestamp()) {
+                        if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint().getIndexMsgTimestamp()) {
+                            //舍弃未到保存点的数据
                             f.destroy(0);
                             continue;
                         }
@@ -89,6 +92,9 @@ public class IndexService {
         return true;
     }
 
+    /**
+     * 首先获取到过期的文件，形成一个list，在调用deleteExpiredFile(fileList)方法
+     */
     public void deleteExpiredFile(long offset) {
         Object[] files = null;
         try {
@@ -96,7 +102,6 @@ public class IndexService {
             if (this.indexFileList.isEmpty()) {
                 return;
             }
-
             long endPhyOffset = this.indexFileList.get(0).getEndPhyOffset();
             if (endPhyOffset < offset) {
                 files = this.indexFileList.toArray();
@@ -108,7 +113,7 @@ public class IndexService {
         }
 
         if (files != null) {
-            List<IndexFile> fileList = new ArrayList<IndexFile>();
+            List<IndexFile> fileList = new ArrayList<>();
             for (int i = 0; i < (files.length - 1); i++) {
                 IndexFile f = (IndexFile) files[i];
                 if (f.getEndPhyOffset() < offset) {
@@ -117,11 +122,14 @@ public class IndexService {
                     break;
                 }
             }
-
             this.deleteExpiredFile(fileList);
         }
     }
 
+    /**
+     * 删除过期文件
+     * @param files
+     */
     private void deleteExpiredFile(List<IndexFile> files) {
         if (!files.isEmpty()) {
             try {
@@ -142,6 +150,9 @@ public class IndexService {
         }
     }
 
+    /**
+     * clear
+     */
     public void destroy() {
         try {
             this.readWriteLock.writeLock().lock();
@@ -156,6 +167,14 @@ public class IndexService {
         }
     }
 
+    /**
+     * @param topic 主题
+     * @param key key
+     * @param maxNum 一次返回的最大值，默认为64
+     * @param begin 开始时间
+     * @param end  结束时间
+     * @return 主题#key下的对应时间范围的所有message的偏移量，上次index更新时间，上次index更新偏移量
+     */
     public QueryOffsetResult queryOffset(String topic, String key, int maxNum, long begin, long end) {
         List<Long> phyOffsets = new ArrayList<>(maxNum);
 
@@ -174,7 +193,6 @@ public class IndexService {
                     }
 
                     if (f.isTimeMatched(begin, end)) {
-
                         f.selectPhyOffset(phyOffsets, buildKey(topic, key), maxNum, begin, end);
                     }
 
@@ -200,6 +218,7 @@ public class IndexService {
         return topic + "#" + key;
     }
 
+    //todo
     public void buildIndex(DispatchRequest req) {
         IndexFile indexFile = retryGetAndCreateIndexFile();
         if (indexFile != null) {
@@ -247,6 +266,11 @@ public class IndexService {
         }
     }
 
+    /**
+     * 循环尝试PutKey
+     * 如果失败则创建一个新的indexFile，然后插入
+     * @return 对应的indexFile
+     */
     private IndexFile putKey(IndexFile indexFile, DispatchRequest msg, String idxKey) {
         for (boolean ok = indexFile.putKey(idxKey, msg.getCommitLogOffset(), msg.getStoreTimestamp()); !ok; ) {
             log.warn("Index file [" + indexFile.getFileName() + "] is full, trying to create another one");
@@ -291,12 +315,17 @@ public class IndexService {
         return indexFile;
     }
 
+    /**
+     * 先获取上一个索引文件，如果可写则直接返回
+     * 否则获取该索引文件的EndPhyOffset和EndTimestamp作为创建新的indexFile的填充
+     * index的文件名后缀是时间戳
+     * 然后将上一个索引文件刷盘
+     */
     public IndexFile getAndCreateLastIndexFile() {
         IndexFile indexFile = null;
         IndexFile prevIndexFile = null;
         long lastUpdateEndPhyOffset = 0;
         long lastUpdateIndexTimestamp = 0;
-
         {
             this.readWriteLock.readLock().lock();
             if (!this.indexFileList.isEmpty()) {
@@ -316,11 +345,8 @@ public class IndexService {
         if (indexFile == null) {
             try {
                 String fileName =
-                    this.storePath + File.separator
-                        + UtilAll.timeMillisToHumanString(System.currentTimeMillis());
-                indexFile =
-                    new IndexFile(fileName, this.hashSlotNum, this.indexNum, lastUpdateEndPhyOffset,
-                        lastUpdateIndexTimestamp);
+                    this.storePath + File.separator + UtilAll.timeMillisToHumanString(System.currentTimeMillis());
+                indexFile = new IndexFile(fileName, this.hashSlotNum, this.indexNum, lastUpdateEndPhyOffset, lastUpdateIndexTimestamp);
                 this.readWriteLock.writeLock().lock();
                 this.indexFileList.add(indexFile);
             } catch (Exception e) {
@@ -331,12 +357,7 @@ public class IndexService {
 
             if (indexFile != null) {
                 final IndexFile flushThisFile = prevIndexFile;
-                Thread flushThread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        IndexService.this.flush(flushThisFile);
-                    }
-                }, "FlushIndexFileThread");
+                Thread flushThread = new Thread(() -> IndexService.this.flush(flushThisFile), "FlushIndexFileThread");
 
                 flushThread.setDaemon(true);
                 flushThread.start();
@@ -346,6 +367,10 @@ public class IndexService {
         return indexFile;
     }
 
+    /**
+     * 1.indexFile刷盘
+     * 2.checkPoint更新索引文件刷盘时间
+     */
     public void flush(final IndexFile f) {
         if (null == f)
             return;
@@ -364,11 +389,7 @@ public class IndexService {
         }
     }
 
-    public void start() {
+    public void start() {}
 
-    }
-
-    public void shutdown() {
-
-    }
+    public void shutdown() {}
 }

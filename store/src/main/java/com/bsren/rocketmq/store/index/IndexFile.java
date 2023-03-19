@@ -95,7 +95,7 @@ public class IndexFile {
      * 2.获得key的hashCode进一步获得对应的slot
      * 3.因为slot的Size是固定的，所以通过headSize+slotPos*slotSize就可以获得对应的slot偏移量
      * 4.获得索引的逻辑下表，因为索引文件的 Header 和 Hash Slot 部分长度都是固定的，每个索引的长度也是固定的，所以可以通过逻辑下标计算出索引项在索引文件中的绝对偏移量
-     * 5.
+     * 5.putKey
      */
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
         if (!isWriteFull()) {
@@ -182,6 +182,7 @@ public class IndexFile {
     }
 
     /**
+     * 查询该key下所有的消息
      * 根据 key 的 Hash值计算 hash槽的绝对位置
      * 通过 hash槽中存储的索引逻辑下标，找到索引链表绝对位置
      * 遍历索引链表中的每个索引，获取索引数据，比较时间信息
