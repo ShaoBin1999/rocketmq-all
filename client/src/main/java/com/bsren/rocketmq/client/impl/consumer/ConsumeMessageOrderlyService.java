@@ -69,10 +69,9 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         MessageListenerOrderly messageListener) {
         this.defaultMQPushConsumerImpl = defaultMQPushConsumerImpl;
         this.messageListener = messageListener;
-
         this.defaultMQPushConsumer = this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer();
         this.consumerGroup = this.defaultMQPushConsumer.getConsumerGroup();
-        this.consumeRequestQueue = new LinkedBlockingQueue<Runnable>();
+        this.consumeRequestQueue = new LinkedBlockingQueue<>();
 
         this.consumeExecutor = new ThreadPoolExecutor(
             this.defaultMQPushConsumer.getConsumeThreadMin(),
@@ -134,20 +133,13 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     public ConsumeMessageDirectlyResult consumeMessageDirectly(MessageExt msg, String brokerName) {
         ConsumeMessageDirectlyResult result = new ConsumeMessageDirectlyResult();
         result.setOrder(true);
-
-        List<MessageExt> msgs = new ArrayList<MessageExt>();
+        //其实这个列表只有一个元素
+        List<MessageExt> msgs = new ArrayList<>();
         msgs.add(msg);
-        MessageQueue mq = new MessageQueue();
-        mq.setBrokerName(brokerName);
-        mq.setTopic(msg.getTopic());
-        mq.setQueueId(msg.getQueueId());
-
+        MessageQueue mq = new MessageQueue(brokerName,msg.getTopic(),msg.getQueueId());
         ConsumeOrderlyContext context = new ConsumeOrderlyContext(mq);
-
         final long beginTime = System.currentTimeMillis();
-
         log.info("consumeMessageDirectly receive new message: {}", msg);
-
         try {
             ConsumeOrderlyStatus status = this.messageListener.consumeMessage(msgs, context);
             if (status != null) {
@@ -175,17 +167,11 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             result.setRemark(RemotingHelper.exceptionSimpleDesc(e));
 
             log.warn(String.format("consumeMessageDirectly exception: %s Group: %s Msgs: %s MQ: %s",
-                RemotingHelper.exceptionSimpleDesc(e),
-                ConsumeMessageOrderlyService.this.consumerGroup,
-                msgs,
-                mq), e);
+                RemotingHelper.exceptionSimpleDesc(e), ConsumeMessageOrderlyService.this.consumerGroup, msgs, mq), e);
         }
-
         result.setAutoCommit(context.isAutoCommit());
         result.setSpentTimeMills(System.currentTimeMillis() - beginTime);
-
         log.info("consumeMessageDirectly Result: {}", result);
-
         return result;
     }
 
@@ -209,15 +195,12 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
     public void tryLockLaterAndReconsume(final MessageQueue mq, final ProcessQueue processQueue,
         final long delayMills) {
-        this.scheduledExecutorService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                boolean lockOK = ConsumeMessageOrderlyService.this.lockOneMQ(mq);
-                if (lockOK) {
-                    ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 10);
-                } else {
-                    ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 3000);
-                }
+        this.scheduledExecutorService.schedule(() -> {
+            boolean lockOK = ConsumeMessageOrderlyService.this.lockOneMQ(mq);
+            if (lockOK) {
+                ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 10);
+            } else {
+                ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 3000);
             }
         }, delayMills, TimeUnit.MILLISECONDS);
     }
@@ -232,8 +215,8 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     private void submitConsumeRequestLater(
         final ProcessQueue processQueue,
         final MessageQueue messageQueue,
-        final long suspendTimeMillis
-    ) {
+        final long suspendTimeMillis) {
+
         long timeMillis = suspendTimeMillis;
         if (timeMillis == -1) {
             timeMillis = this.defaultMQPushConsumer.getSuspendCurrentQueueTimeMillis();
@@ -245,13 +228,9 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             timeMillis = 30000;
         }
 
-        this.scheduledExecutorService.schedule(new Runnable() {
-
-            @Override
-            public void run() {
-                ConsumeMessageOrderlyService.this.submitConsumeRequest(null, processQueue, messageQueue, true);
-            }
-        }, timeMillis, TimeUnit.MILLISECONDS);
+        this.scheduledExecutorService.schedule(() ->
+                ConsumeMessageOrderlyService.this.submitConsumeRequest(
+                        null, processQueue, messageQueue, true), timeMillis, TimeUnit.MILLISECONDS);
     }
 
     public boolean processConsumeResult(
@@ -266,8 +245,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             switch (status) {
                 case COMMIT:
                 case ROLLBACK:
-                    log.warn("the message queue consume result is illegal, we think you want to ack these message {}",
-                        consumeRequest.getMessageQueue());
+                    log.warn("the message queue consume result is illegal, we think you want to ack these message {}", consumeRequest.getMessageQueue());
                 case SUCCESS:
                     commitOffset = consumeRequest.getProcessQueue().commit();
                     this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
@@ -382,6 +360,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     class ConsumeRequest implements Runnable {
+
         private final ProcessQueue processQueue;
         private final MessageQueue messageQueue;
 
@@ -410,14 +389,15 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                     || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
                     final long beginTime = System.currentTimeMillis();
-                    for (boolean continueConsume = true; continueConsume; ) {
+                    boolean continueConsume = true;
+                    while (continueConsume){
                         if (this.processQueue.isDropped()) {
                             log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
                             break;
                         }
 
                         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
-                            && !this.processQueue.isLocked()) {
+                                && !this.processQueue.isLocked()) {
                             log.warn("the message queue not locked, so consume later, {}", this.messageQueue);
                             ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);
                             break;
@@ -439,7 +419,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                         final int consumeBatchSize =
                             ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
 
-                        List<MessageExt> msgs = this.processQueue.takeMessags(consumeBatchSize);
+                        List<MessageExt> msgs = this.processQueue.takeMessages(consumeBatchSize);
                         if (!msgs.isEmpty()) {
                             final ConsumeOrderlyContext context = new ConsumeOrderlyContext(this.messageQueue);
 
@@ -528,12 +508,12 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             continueConsume = false;
                         }
                     }
-                } else {
+                }
+                else {
                     if (this.processQueue.isDropped()) {
                         log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
                         return;
                     }
-
                     ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 100);
                 }
             }

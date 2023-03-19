@@ -18,6 +18,12 @@ package com.bsren.rocketmq.store;
 
 import java.nio.ByteBuffer;
 
+/**
+ * startOffset buffer开始的偏移量
+ * byteBuffer 返回实体
+ * size返回结果字节数
+ * mappedFile 对应的文件
+ */
 public class SelectMappedBufferResult {
 
     private final long startOffset;

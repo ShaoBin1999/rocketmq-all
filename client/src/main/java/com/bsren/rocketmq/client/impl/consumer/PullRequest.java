@@ -18,6 +18,11 @@ package com.bsren.rocketmq.client.impl.consumer;
 
 import com.bsren.rocketmq.common.message.MessageQueue;
 
+/**
+ * 消费组
+ * MessageQueue
+ * ProcessQueue
+ */
 public class PullRequest {
     private String consumerGroup;
     private MessageQueue messageQueue;

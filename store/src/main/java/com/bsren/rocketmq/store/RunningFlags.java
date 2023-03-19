@@ -17,6 +17,7 @@
 package com.bsren.rocketmq.store;
 
 /**
+ * 值得学习的地方，使用单独的一个类，用10011这种位来表示状态，将状态从另外一个类中抽离出来
  * 记录文件运行的状态
  * NOT_READABLE 不可读
  * NOT_WRITEABLE 不可写

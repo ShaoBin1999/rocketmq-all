@@ -19,7 +19,9 @@ package com.bsren.rocketmq.client.consumer.listener;
 import com.bsren.rocketmq.common.message.MessageQueue;
 
 /**
- * Consumer Orderly consumption context
+ * MessageQueue
+ * autoCommit = true
+ * suspendCurrentQueueTimeMills 消费时间
  */
 public class ConsumeOrderlyContext {
     private final MessageQueue messageQueue;

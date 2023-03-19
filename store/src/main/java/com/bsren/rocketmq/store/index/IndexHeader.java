@@ -20,6 +20,14 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * ● beginTimestamp：最早的消息存储时间（消息存储到 CommitLog 的时间）
+ * ● endTimestamp：最晚的消息存储时间
+ * ● beginPhyoffset：存储的消息的最小物理偏移量（在 CommitLog 中的偏移量）
+ * ● endPhyoffset：存储的消息的最大物理偏移量
+ * ● hashSlotCount：最大可存储的 hash 槽个数
+ * ● indexCount：当前已经使用的索引条目个数。注意这个值是从 1 开始的
+ */
 public class IndexHeader {
 
     public static final int INDEX_HEADER_SIZE = 40;
@@ -52,7 +60,6 @@ public class IndexHeader {
 
         this.hashSlotCount.set(byteBuffer.getInt(hashSlotcountIndex));
         this.indexCount.set(byteBuffer.getInt(indexCountIndex));
-
         if (this.indexCount.get() <= 0) {
             this.indexCount.set(1);
         }

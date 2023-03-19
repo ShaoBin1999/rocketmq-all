@@ -23,10 +23,15 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * Message lock,strictly ensure the single queue only one thread at a time consuming
+ * 锁住MessageQueue，只有这个队列只有一个线程去消费
  */
 public class MessageQueueLock {
     private ConcurrentMap<MessageQueue, Object> mqLockTable = new ConcurrentHashMap<>();
 
+    /**
+     * 如果有锁则直接返回
+     * 如果无锁则添加Object
+     */
     public Object fetchLockObject(final MessageQueue mq) {
         Object objLock = this.mqLockTable.get(mq);
         if (null == objLock) {
@@ -36,7 +41,6 @@ public class MessageQueueLock {
                 objLock = prevLock;
             }
         }
-
         return objLock;
     }
 }

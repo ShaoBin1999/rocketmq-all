@@ -43,12 +43,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * CHECK_TRANSACTION_STATE
- * NOTIFY_CONSUMER_IDS_CHANGED
- * RESET_CONSUMER_CLIENT_OFFSET
- * GET_CONSUMER_STATUS_FROM_CLIENT
- * GET_CONSUMER_RUNNING_INFO
- * CONSUME_MESSAGE_DIRECTLY
+ * 继承NettyRequestProcessor，处理以下请求
+ * CHECK_TRANSACTION_STATE           检查事务状态
+ * NOTIFY_CONSUMER_IDS_CHANGED       通知消费者消费组变更
+ * RESET_CONSUMER_CLIENT_OFFSET      重新设置消费者的offset
+ * GET_CONSUMER_STATUS_FROM_CLIENT   得到消费者统计量
+ * GET_CONSUMER_RUNNING_INFO         得到消费者状态
+ * CONSUME_MESSAGE_DIRECTLY          直接消费
  */
 public class ClientRemotingProcessor implements NettyRequestProcessor {
 

@@ -400,10 +400,6 @@ public class DefaultMessageStore implements MessageStore {
         return result;
     }
 
-    @Override
-    public GetMessageResult getMessage(String group, String topic, int queueId, long offset, int maxMsgNums, com.bsren.rocketmq.common.filter.MessageFilter messageFilter) {
-        return null;
-    }
 
     @Override
     public boolean isOSPageCacheBusy() {

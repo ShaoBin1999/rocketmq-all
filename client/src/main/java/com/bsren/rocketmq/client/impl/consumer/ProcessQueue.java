@@ -35,20 +35,25 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Queue consumption snapshot
  */
 public class ProcessQueue {
+
     public final static long REBALANCE_LOCK_MAX_LIVE_TIME =
         Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockMaxLiveTime", "30000"));
+
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
+
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
+
     private final Logger log = ClientLogger.getLog();
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<>();
     private final AtomicLong msgCount = new AtomicLong();
     private final AtomicLong msgSize = new AtomicLong();
     private final Lock lockConsume = new ReentrantLock();
+
     /**
      * A subset of msgTreeMap, will only be used when orderly consume
      */
-    private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<Long, MessageExt>();
+    private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<>();
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
     private volatile long queueOffsetMax = 0L;
     private volatile boolean dropped = false;
@@ -183,6 +188,9 @@ public class ProcessQueue {
         return 0;
     }
 
+    /**
+     * 删除message
+     */
     public long removeMessage(final List<MessageExt> msgs) {
         long result = -1;
         final long now = System.currentTimeMillis();
@@ -197,7 +205,7 @@ public class ProcessQueue {
                         MessageExt prev = msgTreeMap.remove(msg.getQueueOffset());
                         if (prev != null) {
                             removedCnt--;
-                            msgSize.addAndGet(0 - msg.getBody().length);
+                            msgSize.addAndGet(-msg.getBody().length);
                         }
                     }
                     msgCount.addAndGet(removedCnt);
@@ -297,8 +305,15 @@ public class ProcessQueue {
         }
     }
 
-    public List<MessageExt> takeMessags(final int batchSize) {
-        List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
+    /**
+     * 1.lockTreeMap加写锁
+     * 2.更新lastConsumeTimestamp
+     * 3.从msgTreeMap种poll出batchSize个元素并添加到consumingMsgOrderlyTreeMap中
+     * 4.如果并没有对应的元素，设置consuming为false
+     * 5.lockTreeMap释放写锁
+     */
+    public List<MessageExt> takeMessages(final int batchSize) {
+        List<MessageExt> result = new ArrayList<>(batchSize);
         final long now = System.currentTimeMillis();
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();

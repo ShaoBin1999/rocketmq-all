@@ -41,81 +41,36 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * In most scenarios, this is the mostly recommended class to consume messages.
- * </p>
- *
- * Technically speaking, this push client is virtually a wrapper of the underlying pull service. Specifically, on
- * arrival of messages pulled from brokers, it roughly invokes the registered callback handler to feed the messages.
- * </p>
- *
- * See quickstart/Consumer in the example module for a typical usage.
- * </p>
- *
- * <p>
- * <strong>Thread Safety:</strong> After initialization, the instance can be regarded as thread-safe.
- * </p>
- */
+
 public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsumer {
 
+
     /**
-     * Internal implementation. Most of the functions herein are delegated to it.
+     * 委托
      */
     protected final transient DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
 
     /**
-     * Consumers of the same role is required to have exactly same subscriptions and consumerGroup to correctly achieve
-     * load balance. It's required and needs to be globally unique.
-     * </p>
-     *
-     * See <a href="http://rocketmq.apache.org/docs/core-concept/">here</a> for further discussion.
+     * 消费组拥有同样的订阅信息
      */
     private String consumerGroup;
 
     /**
-     * Message model defines the way how messages are delivered to each consumer clients.
-     * </p>
-     *
-     * RocketMQ supports two message models: clustering and broadcasting. If clustering is set, consumer clients with
-     * the same {@link #consumerGroup} would only consume shards of the messages subscribed, which achieves load
-     * balances; Conversely, if the broadcasting is set, each consumer client will consume all subscribed messages
-     * separately.
-     * </p>
-     *
-     * This field defaults to clustering.
+     * 集群消费或者广播消费
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
     /**
      * Consuming point on consumer booting.
-     * </p>
-     *
      * There are three consuming points:
-     * <ul>
-     * <li>
-     * <code>CONSUME_FROM_LAST_OFFSET</code>: consumer clients pick up where it stopped previously.
+     * CONSUME_FROM_LAST_OFFSET consumer clients pick up where it stopped previously.
      * If it were a newly booting up consumer client, according aging of the consumer group, there are two
-     * cases:
-     * <ol>
-     * <li>
-     * if the consumer group is created so recently that the earliest message being subscribed has yet
-     * expired, which means the consumer group represents a lately launched business, consuming will
-     * start from the very beginning;
-     * </li>
-     * <li>
-     * if the earliest message being subscribed has expired, consuming will start from the latest
-     * messages, meaning messages born prior to the booting timestamp would be ignored.
-     * </li>
-     * </ol>
-     * </li>
-     * <li>
-     * <code>CONSUME_FROM_FIRST_OFFSET</code>: Consumer client will start from earliest messages available.
-     * </li>
-     * <li>
-     * <code>CONSUME_FROM_TIMESTAMP</code>: Consumer client will start from specified timestamp, which means
-     * messages born prior to {@link #consumeTimestamp} will be ignored
-     * </li>
-     * </ul>
+     * cases: if the consumer group is created so recently that the earliest message being subscribed has yet
+     * expired, which means the consumer group represents a lately launched business, consuming will start from the very beginning;
+     * if the earliest message being subscribed has expired, consuming will start from the latest messages,
+     * meaning messages born prior to the booting timestamp would be ignored.
+     * CONSUME_FROM_FIRST_OFFSET: Consumer client will start from the earliest messages available.
+     * CONSUME_FROM_TIMESTAMP: Consumer client will start from specified timestamp, which means messages born prior to {@link #consumeTimestamp} will be ignored
      */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
@@ -135,7 +90,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Subscription relationship
      */
-    private Map<String /* topic */, String /* sub expression */> subscription = new HashMap<String, String>();
+    private Map<String /* topic */, String /* sub expression */> subscription = new HashMap<>();
 
     /**
      * Message listener
@@ -185,8 +140,8 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Flow control threshold on topic level, default value is -1(Unlimited)
      * <p>
-     * The value of {@code pullThresholdForQueue} will be overwrote and calculated based on
-     * {@code pullThresholdForTopic} if it is't unlimited
+     * The value of {@code pullThresholdForQueue} will be overwritten and calculated based on
+     * {@code pullThresholdForTopic} if it isn't unlimited
      * <p>
      * For example, if the value of pullThresholdForTopic is 1000 and 10 message queues are assigned to this consumer,
      * then pullThresholdForQueue will be set to 100
@@ -233,7 +188,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * Max re-consume times. -1 means 16 times.
      * </p>
      *
-     * If messages are re-consumed more than {@link #maxReconsumeTimes} before success, it's be directed to a deletion
+     * If messages are re-consumed more than maxReconsumeTimes before success, it's being directed to a deletion
      * queue waiting.
      */
     private int maxReconsumeTimes = -1;

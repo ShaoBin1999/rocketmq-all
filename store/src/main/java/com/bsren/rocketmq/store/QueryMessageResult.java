@@ -20,10 +20,15 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 将多个SelectMappedBufferResult返回的结果用list封装一下
+ * this.messageMappedList.add(mappedBuffer);
+ * this.messageBufferList.add(mappedBuffer.getByteBuffer());
+ * this.bufferTotalSize += mappedBuffer.getSize();
+ */
 public class QueryMessageResult {
 
-    private final List<SelectMappedBufferResult> messageMappedList =
-            new ArrayList<>(100);
+    private final List<SelectMappedBufferResult> messageMappedList = new ArrayList<>(100);
 
     private final List<ByteBuffer> messageBufferList = new ArrayList<>(100);
     private long indexLastUpdateTimestamp;

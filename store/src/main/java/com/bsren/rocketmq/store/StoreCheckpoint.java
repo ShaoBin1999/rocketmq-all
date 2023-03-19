@@ -29,22 +29,26 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
 /**
- * checkpoint 的作用是记录 CommitLog、ConsumeQueue、Index文件的刷盘时间点，
+ * checkpoint 的作用是记录 CommitLog、ConsumeQueue、Index文件的刷盘时间点，用于异常时对于数据的恢复
  * 文件固定长度为 4k，其中只用该文件的前面 24 个字节
  * physicMsgTimestamp: CommitLog文件刷盘时间点。
  * logicsMsgTimestamp: 消息消费队列文件刷盘时间点。
  * indexMsgTimestamp:  索引文件刷盘时间点
+ * todo MappedByteBuffer
  */
 public class StoreCheckpoint {
+
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
+
     private final FileChannel fileChannel;
     private final MappedByteBuffer mappedByteBuffer;
+
     private volatile long physicMsgTimestamp = 0;
     private volatile long logicsMsgTimestamp = 0;
     private volatile long indexMsgTimestamp = 0;
 
     /**
-     * 存储 store 到java对象中，等待刷盘
+     * 将checkPoint文件中的内容读取到java对象中，等待刷盘
      */
     public StoreCheckpoint(final String scpPath) throws IOException {
         File file = new File(scpPath);
@@ -74,10 +78,8 @@ public class StoreCheckpoint {
 
     public void shutdown() {
         this.flush();
-
         // unmap mappedByteBuffer
         MappedFile.clean(this.mappedByteBuffer);
-
         try {
             this.fileChannel.close();
         } catch (IOException e) {

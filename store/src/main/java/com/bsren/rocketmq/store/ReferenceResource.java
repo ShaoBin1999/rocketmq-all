@@ -18,7 +18,11 @@ package com.bsren.rocketmq.store;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * 维护mappedFile的引用计数
+ */
 public abstract class ReferenceResource {
+
     protected final AtomicLong refCount = new AtomicLong(1);
     protected volatile boolean available = true;
     protected volatile boolean cleanupOver = false;
@@ -35,7 +39,6 @@ public abstract class ReferenceResource {
                 this.refCount.getAndDecrement();
             }
         }
-
         return false;
     }
 
