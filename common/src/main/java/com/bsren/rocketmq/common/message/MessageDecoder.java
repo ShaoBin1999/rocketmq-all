@@ -57,6 +57,7 @@ public class MessageDecoder {
         + 4 // 13 RECONSUMETIMES
         + 8; // 14 Prepared Transaction Offset
 
+    //Broker 服务器的 IP 与端口号、消息的物理偏移量。
     public static String createMessageId(final ByteBuffer input, final ByteBuffer addr, final long offset) {
         input.flip();
         input.limit(MessageDecoder.MSG_ID_LENGTH);

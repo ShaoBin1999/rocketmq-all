@@ -41,10 +41,11 @@ import java.util.List;
  * 消息tag的hashcode（8字节，存储tag的hashcode的原因是每个consumeQueue条目都是定长的）
  */
 public class ConsumeQueue {
+
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
+    private static final Logger LOG_ERROR = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
     public static final int CQ_STORE_UNIT_SIZE = 20;
-    private static final Logger LOG_ERROR = LoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
     private final DefaultMessageStore defaultMessageStore;
 
@@ -57,6 +58,7 @@ public class ConsumeQueue {
     private final int mappedFileSize;
     private long maxPhysicOffset = -1;
     private volatile long minLogicOffset = 0;
+    //在消费能力不足，产生积压得时候是否开启了文件拓展，默认不开启
     private ConsumeQueueExt consumeQueueExt = null;
 
     public ConsumeQueue(

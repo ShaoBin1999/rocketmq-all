@@ -165,8 +165,8 @@ public class MappedFile extends ReferenceResource {
         String methodName = "viewedBuffer";
 
         Method[] methods = buffer.getClass().getMethods();
-        for (int i = 0; i < methods.length; i++) {
-            if (methods[i].getName().equals("attachment")) {
+        for (Method method : methods) {
+            if (method.getName().equals("attachment")) {
                 methodName = "attachment";
                 break;
             }
@@ -242,6 +242,9 @@ public class MappedFile extends ReferenceResource {
         return appendMessagesInner(messageExtBatch, cb);
     }
 
+    /**
+     *
+     */
     public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb) {
         assert messageExt != null;
         assert cb != null;
@@ -252,6 +255,7 @@ public class MappedFile extends ReferenceResource {
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             byteBuffer.position(currentPos);
             AppendMessageResult result = null;
+            //append
             if (messageExt instanceof MessageExtBrokerInner) {
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBrokerInner) messageExt);
             } else if (messageExt instanceof MessageExtBatch) {

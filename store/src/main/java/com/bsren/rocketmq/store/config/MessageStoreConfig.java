@@ -35,6 +35,8 @@ public class MessageStoreConfig {
     // ConsumeQueue file size,default is 30W
     private int mapedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
     // enable consume queue ext
+    // 是否开启 consumeQueueExt,默认为 false,就是如果消费端消息消费速度跟不上，
+    // 是否创建一个扩展的 ConsumeQueue文件，如果不开启，应该会阻塞从 commitlog 文件中获取消息，并且 ConsumeQueue,应该是按topic独立的。
     private boolean enableConsumeQueueExt = false;
     // ConsumeQueue extend file size, 48M
     private int mappedFileSizeConsumeQueueExt = 48 * 1024 * 1024;
@@ -81,6 +83,7 @@ public class MessageStoreConfig {
     // Flow control for ConsumeQueue
     private int putMsgIndexHightWater = 600000;
     // The maximum size of a single log file,default is 512K
+    // 最大得消息长度，默认为512k
     private int maxMessageSize = 1024 * 1024 * 4;
     // Whether check the CRC32 of the records consumed.
     // This ensures no on-the-wire or on-disk corruption to the messages occurred.
@@ -191,6 +194,7 @@ public class MessageStoreConfig {
         this.mapedFileSizeCommitLog = mapedFileSizeCommitLog;
     }
 
+    //default = 300000*20
     public int getMapedFileSizeConsumeQueue() {
 
         int factor = (int) Math.ceil(this.mapedFileSizeConsumeQueue / (ConsumeQueue.CQ_STORE_UNIT_SIZE * 1.0));
@@ -606,12 +610,10 @@ public class MessageStoreConfig {
     /**
      * Enable transient commitLog store poll only if transientStorePoolEnable is true and the FlushDiskType is
      * ASYNC_FLUSH
-     *
      * @return <tt>true</tt> or <tt>false</tt>
      */
     public boolean isTransientStorePoolEnable() {
-        return transientStorePoolEnable && FlushDiskType.ASYNC_FLUSH == getFlushDiskType()
-            && BrokerRole.SLAVE != getBrokerRole();
+        return transientStorePoolEnable && FlushDiskType.ASYNC_FLUSH == getFlushDiskType() && BrokerRole.SLAVE != getBrokerRole();
     }
 
     public void setTransientStorePoolEnable(final boolean transientStorePoolEnable) {

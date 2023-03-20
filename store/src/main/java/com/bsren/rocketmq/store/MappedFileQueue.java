@@ -161,8 +161,7 @@ public class MappedFileQueue {
             Arrays.sort(files);
             for (File file : files) {
                 if (file.length() != this.mappedFileSize) {
-                    log.warn(file + "\t" + file.length()
-                        + " length not matched message store config value, ignore it");
+                    log.warn(file + "\t" + file.length() + " length not matched message store config value, ignore it");
                     return true;
                 }
                 try {
@@ -484,6 +483,7 @@ public class MappedFileQueue {
     /**
      * 获取到对应的文件,commit
      * 更新
+     * 如果commit了则返回false
      */
     public boolean commit(final int commitLeastPages) {
         boolean result = true;

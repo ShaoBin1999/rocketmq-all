@@ -31,7 +31,7 @@ public class MessageExt extends Message {
     private int storeSize;
 
     private long queueOffset;
-    private int sysFlag;
+    private int sysFlag;    //消息类型，比如事务消息
     private long bornTimestamp;
     private SocketAddress bornHost;
 
