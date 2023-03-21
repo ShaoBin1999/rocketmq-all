@@ -912,10 +912,21 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
     }
 
+    /**
+     该方法主要做了以下事情
+
+     给消息打上事务消息相关的tag，用于broker区分普通消息和事务消息
+
+     发送半消息(half message)
+
+     发送成功则由transactionListener执行本地事务
+
+     执行endTransaction方法，告诉 broker 执行 commit/rollback。
+     */
     public TransactionSendResult sendMessageInTransaction(final Message msg,
-                                                          final LocalTransactionExecutor tranExecuter, final Object arg)
+                                                          final LocalTransactionExecutor tranExecutor, final Object arg)
         throws MQClientException {
-        if (null == tranExecuter) {
+        if (null == tranExecutor) {
             throw new MQClientException("tranExecutor is null", null);
         }
         Validators.checkMessage(msg, this.defaultMQProducer);
@@ -937,7 +948,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     if (sendResult.getTransactionId() != null) {
                         msg.putUserProperty("__transactionId__", sendResult.getTransactionId());
                     }
-                    localTransactionState = tranExecuter.executeLocalTransactionBranch(msg, arg);
+                    ////发送消息成功，执行本地事务
+                    localTransactionState = tranExecutor.executeLocalTransactionBranch(msg, arg);
                     if (null == localTransactionState) {
                         localTransactionState = LocalTransactionState.UNKNOWN;
                     }
@@ -962,6 +974,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 break;
         }
 
+        //执行endTransaction方法，如果半消息发送失败或本地事务执行失败告诉服务端是删除半消息
+        //半消息发送成功且本地事务执行成功则告诉服务端生效半消息
         try {
             this.endTransaction(sendResult, localTransactionState, localException);
         } catch (Exception e) {
@@ -981,8 +995,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     /**
      * DEFAULT SYNC -------------------------------------------------------
      */
-    public SendResult send(
-        Message msg) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+    public SendResult send(Message msg) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         return send(msg, this.defaultMQProducer.getSendMsgTimeout());
     }
 

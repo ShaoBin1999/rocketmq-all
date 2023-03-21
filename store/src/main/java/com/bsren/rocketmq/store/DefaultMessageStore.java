@@ -139,9 +139,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public void truncateDirtyLogicFiles(long phyOffset) {
-        ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueue>> tables = DefaultMessageStore.this.consumeQueueTable;
-
-        for (ConcurrentMap<Integer, ConsumeQueue> maps : tables.values()) {
+        for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
             for (ConsumeQueue logic : maps.values()) {
                 logic.truncateDirtyLogicFiles(phyOffset);
             }

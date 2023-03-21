@@ -17,6 +17,8 @@
         <module>store</module>
         <module>filter</module>
         <module>filtersrv</module>
+        <module>namesrv</module>
+        <module>tools</module>
     </modules>
 
     <properties>

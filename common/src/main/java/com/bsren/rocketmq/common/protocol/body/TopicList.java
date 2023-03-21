@@ -22,7 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class TopicList extends RemotingSerializable {
-    private Set<String> topicList = new HashSet<String>();
+    private Set<String> topicList = new HashSet<>();
     private String brokerAddr;
 
     public Set<String> getTopicList() {

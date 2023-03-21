@@ -52,6 +52,11 @@ public class CommitLog {
     public final static int MESSAGE_MAGIC_CODE = 0xAABBCCDD ^ 1880681586 + 8;
 
     // End of file empty MAGIC CODE cbd43194
+    //MESSAGE_MAGIC_CODE表明该CommitLog记录是一条正常的记录，
+    //BLANK_MAGIC_CODE表明该CommitLog记录是一个空的CommitLog记录。
+    //如果存储CommitLog发现空间不够，会马上开辟第二个文件重新存储CommitLog记录，
+    //但是之前的空的CommitLog也一样会保存下来。在Broker正常退出或者异常退出
+    //重启之后需要恢复Broker的时候，就会根据这个MagicCode判断该条CommitLog是否是正常的。
     private final static int BLANK_MAGIC_CODE = 0xBBCCDDEE ^ 1880681586 + 8;
 
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -70,6 +75,11 @@ public class CommitLog {
 
     private final AppendMessageCallback appendMessageCallback;
     private final ThreadLocal<MessageExtBatchEncoder> batchEncoderThreadLocal;
+    //为了方便Consumer能根据Topic快速的查询消息，在CommitLog的基础上构建了ConsumerQueue，里面存放了某个Topic下面的所有消息在CommitLog中的位置。
+    //
+    //同样的，这里的QueueOffset存放了消息记录应该在ConsumerQueue中的位置，
+    // 这样构建ConsumerQueue的时候，就知道该条记录在ConsummerQueue的位置顺序，
+    // 在消费消息的时候很有用处。QueueOffset一般是是累加1的
     private HashMap<String/* topic-queueid */, Long/* offset */> topicQueueTable = new HashMap<>(1024);
     private volatile long confirmOffset = -1L;
 
@@ -164,8 +174,23 @@ public class CommitLog {
         return null;
     }
 
+
     /**
-     * When the normal exit, data recovery, all memory data have been flush
+     * 主要是恢复MappedFileQueue对象的commitedWhere变量值（即刷盘的位置），
+     * 删除该commitedWhere值所在文件之后的commitlog文件以及对应的MappedFile对象。
+     * 在Broker启动过程中会调用该方法。从MappedFileQueue的MappedFile列表的倒数第三个对象（即倒数第三个文件）开始遍历每块消息单元，
+     * 若总共没有三个文件，则从第一个文件开始遍历每块消息单元。
+     * 首先，每次读取到消息单元块之后，进行CRC的校验，
+     * 在校验过程中，若检查到第5至8字节MAGICCODE字段等于BlankMagicCode（cbd43194）则返回msgSize=0的DispatchRequest对象；
+     * 若校验未通过或者读取到的信息为空则返回msgSize=-1的DispatchRequest对象；
+     * 否则返回msgSize等于第1个4字节的msgSize字段值的DispatchRequest对象。
+     * 对于msgSize大于零，则读取的偏移量mappedFileOffset累加msgSize；
+     * 若等于零，则表示读取到了文件的最后一块信息，
+     * 则继续读取下一个MappedFile对象的文件；直到消息的CRC校验未通过或者读取完所有信息为止。
+     * 计算有效信息的最后位置processOffset，计算方式为：取最后读取的MappedFile对象的fileFromOffset加上最后读取的位置mappedFileOffset值。
+     * 最后更新内存中的对象数据信息：设置MappedFileQueue对象的commitedWhere等于processOffset；
+     * 调用truncateDirtyFiles方法将processOffset所在文件之后的文件全部清理掉，
+     * 并且将所在文件对应的MappedFile对象的wrotepostion和commitPosition设置为processOffset%fileSize，即等于mappedFileOffset值。
      */
     public void recoverNormally() {
         boolean checkCRCOnRecover = this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
@@ -190,6 +215,7 @@ public class CommitLog {
                 // Come the end of the file, switch to the next file Since the
                 // return 0 representatives met last hole,
                 // this can not be included in truncate offset
+                // 如果读到size为0，说明文件已经读到末尾了，需要读下一个文件了
                 else if (dispatchRequest.isSuccess() && size == 0) {
                     index++;
                     if (index >= mappedFiles.size()) {
@@ -404,6 +430,43 @@ public class CommitLog {
         this.confirmOffset = phyOffset;
     }
 
+    /**
+     * 在Broker启动过程中会调用该方法。与正常恢复的区别在于：正常恢复是从倒数第3个文件开始恢复；
+     * 而异常恢复是从最后的文件开始往前寻找与checkpoint文件的记录相匹配的一个文件。
+     * 首先，若该MappedFile队列为空，则MappedFileQueue对象的commitedWhere等于零，
+     * 并且调用DefaultMessageStore.destroyLogics()方法删除掉逻辑队列consumequeue中的物理文件以及清理内存数据。
+     * 否则从MappedFileQueue的MappedFile列表找到从哪个文件（对应的MappedFile对象）开始恢复数据，查找逻辑如下：
+     *
+     * 1、从MappedFile列表中的最后一个对象开始往前遍历每个MappedFile对象，检查该MappedFile对象对应的文件是否满足恢复条件，查找逻辑如下，
+     * 若查找完整个队列未找到符合条件的MappedFile对象，则从第一个文件开始恢复。
+     * A）从该文件中获取第一个消息单元的第5至8字节的MAGICCODE字段，若该字段等于MessageMagicCode（即不是正常的消息内容），则直接返回后继续检查前一个文件；
+     * B）获取第一个消息单元的第56位开始的8个字节的storeTimeStamp字段，若等于零，也直接返回后继续检查前一个文件；
+     * C）检查是否开启消息索引功能（MessageStoreConfig .messageIndexEnable，默认为true）并且是否使用安全的消息索引功能（MessageStoreConfig. MessageIndexSafe，默认为false，
+     * 在可靠模式下，异常宕机恢复慢；非可靠模式下，异常宕机恢复快），
+     * 若开启可靠模式下面的消息索引，
+     * 则消息的storeTimeStamp字段表示的时间戳必须小于checkpoint文件中物理队列消息时间戳、逻辑队列消息时间戳、索引队列消息时间戳这三个时间戳中最小值，才满足恢复数据的条件；
+     * 否则消息的storeTimeStamp字段表示的时间戳必须小于checkpoint文件中物理队列消息时间戳、逻辑队列消息时间戳这两个时间戳中最小值才满足恢复数据的条件；
+     *
+     * 2、从找到的MappedFile对象开始往后开始遍历每个文件的消息单元，
+     * 首先，每次读取到消息单元块之后，进行CRC的校验，在校验过程中，
+     * 若检查到第5至8字节MAGICCODE字段等于BlankMagicCode（cbd43194）
+     * 则返回msgSize=0的DispatchRequest对象；
+     * 若校验未通过或者读取到的信息为空则返回msgSize=-1的DispatchRequest对象；
+     * 否则返回msgSize等于第1个4字节的msgSize字段值的DispatchRequest对象。
+     * 对于msgSize大于零，则读取的偏移量mappedFileOffset累加msgSize，并将DispatchRequest对象放入DefaultMessageStore.DispatchMessageService服务线程中，
+     * 由该线程在后台进行ConsumeQueue队列和Index服务的数据加载；
+     * 若等于零，则表示读取到了文件的最后一块信息，则继续读取下一个MappedFile对象的文件；直到消息的CRC校验未通过或者读取完所有信息为止。
+     * 计算有效信息的最后位置processOffset，计算方式为：取最后读取的MappedFile对象的fileFromOffset加上最后读取的位置mappedFileOffset值。
+     *
+     * 3、更新内存中的对象数据信息：设置MappedFileQueue对象的commitedWhere等于processOffset；
+     * 调用MappedFileQueue.truncateDirtyFiles方法将processOffset所在文件之后的文件全部清理掉，
+     * 并且将所在文件对应的MappedFile对象的wrotepostion和commitPosition设置为processOffset%fileSize，即等于mappedFileOffset值。
+     *
+     * 4、调用DefaultMessageStore.truncateDirtyLogicFiles(long processOffset) 方法，
+     *   在该方法中遍历DefaultMessageStore.consumeQueueTable的values值
+     *   （即ConcurrentHashMapInteger/* queueId *,ConsumeQueue，对于调用每个ConsumeQueue对象的truncateDirtyLogicFiles(long processOffset)方法，
+     *   该方法根据物理偏移值processOffset删除无效的逻辑文件。
+     */
     public void recoverAbnormally() {
         // recover by the minimum time stamp
         boolean checkCRCOnRecover = this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
@@ -1318,7 +1381,7 @@ public class CommitLog {
              * 10.bron host long
              * 11.store timestamp long
              * 12. store host long
-             * 13. reConsumeTimes int
+             * 13. reConsumeTimes int   重复消费次数，初始为0。我们消费消息的时候，如果发生异常，可以选择晚一点重新消费,默认最大重试次数是16次。
              * 14. transaction offset
              * 15. body length int
              * 16. body

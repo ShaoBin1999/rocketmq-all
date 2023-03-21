@@ -301,33 +301,29 @@ public class MQAdminImpl {
                                     try {
                                         RemotingCommand response = responseFuture.getResponseCommand();
                                         if (response != null) {
-                                            switch (response.getCode()) {
-                                                case ResponseCode.SUCCESS: {
-                                                    QueryMessageResponseHeader responseHeader = null;
-                                                    try {
-                                                        responseHeader =
+                                            if (response.getCode() == ResponseCode.SUCCESS) {
+                                                QueryMessageResponseHeader responseHeader = null;
+                                                try {
+                                                    responseHeader =
                                                             (QueryMessageResponseHeader) response
-                                                                .decodeCommandCustomHeader(QueryMessageResponseHeader.class);
-                                                    } catch (RemotingCommandException e) {
-                                                        log.error("decodeCommandCustomHeader exception", e);
-                                                        return;
-                                                    }
+                                                                    .decodeCommandCustomHeader(QueryMessageResponseHeader.class);
+                                                } catch (RemotingCommandException e) {
+                                                    log.error("decodeCommandCustomHeader exception", e);
+                                                    return;
+                                                }
 
-                                                    List<MessageExt> wrappers =
+                                                List<MessageExt> wrappers =
                                                         MessageDecoder.decodes(ByteBuffer.wrap(response.getBody()), true);
 
-                                                    QueryResult qr = new QueryResult(responseHeader.getIndexLastUpdateTimestamp(), wrappers);
-                                                    try {
-                                                        lock.writeLock().lock();
-                                                        queryResultList.add(qr);
-                                                    } finally {
-                                                        lock.writeLock().unlock();
-                                                    }
-                                                    break;
+                                                QueryResult qr = new QueryResult(responseHeader.getIndexLastUpdateTimestamp(), wrappers);
+                                                try {
+                                                    lock.writeLock().lock();
+                                                    queryResultList.add(qr);
+                                                } finally {
+                                                    lock.writeLock().unlock();
                                                 }
-                                                default:
-                                                    log.warn("getResponseCommand failed, {} {}", response.getCode(), response.getRemark());
-                                                    break;
+                                            } else {
+                                                log.warn("getResponseCommand failed, {} {}", response.getCode(), response.getRemark());
                                             }
                                         } else {
                                             log.warn("getResponseCommand return null");
@@ -379,12 +375,10 @@ public class MQAdminImpl {
                             if (keys != null) {
                                 boolean matched = false;
                                 String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
-                                if (keyArray != null) {
-                                    for (String k : keyArray) {
-                                        if (key.equals(k)) {
-                                            matched = true;
-                                            break;
-                                        }
+                                for (String k : keyArray) {
+                                    if (key.equals(k)) {
+                                        matched = true;
+                                        break;
                                     }
                                 }
 

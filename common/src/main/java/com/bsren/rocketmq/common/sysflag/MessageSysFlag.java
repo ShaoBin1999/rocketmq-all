@@ -16,6 +16,9 @@
  */
 package com.bsren.rocketmq.common.sysflag;
 
+/**
+ * SysFlag是RocketMQ内部使用的标记位，通过位运算进行标记。例如是否对消息进行了压缩、是否属于事务消息。
+ */
 public class MessageSysFlag {
     public final static int COMPRESSED_FLAG = 0x1;                //1
     public final static int MULTI_TAGS_FLAG = 0x1 << 1;           //10

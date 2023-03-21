@@ -14,6 +14,8 @@
         <module name="store" />
         <module name="broker" />
         <module name="remoting" />
+        <module name="tools" />
+        <module name="namesrv" />
       </profile>
     </annotationProcessing>
   </component>

@@ -1359,15 +1359,11 @@ public class MQClientAPIImpl {
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
             request, timeoutMillis);
         assert response != null;
-        switch (response.getCode()) {
-            case ResponseCode.SUCCESS: {
-                if (response.getBody() != null) {
-                    GetConsumerStatusBody body = GetConsumerStatusBody.decode(response.getBody(), GetConsumerStatusBody.class);
-                    return body.getConsumerTable();
-                }
+        if (response.getCode() == ResponseCode.SUCCESS) {
+            if (response.getBody() != null) {
+                GetConsumerStatusBody body = GetConsumerStatusBody.decode(response.getBody(), GetConsumerStatusBody.class);
+                return body.getConsumerTable();
             }
-            default:
-                break;
         }
 
         throw new MQClientException(response.getCode(), response.getRemark());
